@@ -599,7 +599,7 @@ async function renderStep() {
       ${nav()}`;
     $$("[data-all]").forEach(o => o.onclick = () => { read(); draft.redis.customer_key = o.dataset.all === "1" ? null : "sbc:cust:{ip}"; renderStep(); });
   } else if (STEP === 3) {
-    const c = draft.centers, wm = draft.warn.mode;
+    const c = draft.centers, wm = draft.warn.mode, g = draft.gate = draft.gate || {};
     b.innerHTML = `<h2>When ScamStop hears a scam</h2>
       <div class="choice">
         <div class="opt ${wm === "warn_then_hangup" ? "on" : ""}" data-wm="warn_then_hangup"><b>Warn the person, then hang up</b><small>Recommended. The person hears the warning, then the call ends.</small></div>
@@ -619,6 +619,13 @@ async function renderStep() {
       </div>
       ${isSip() ? `<div class="toggle"><div><b>Never block my customer's own IP</b><small>If the center behind a scam call is your customer's IP, hang up the call but don't block the whole customer.</small></div>
         <label class="sw"><input type="checkbox" id="ncb" ${c.never_block_customer_ip ? "checked" : ""}><span></span></label></div>` : ""}
+      <h2 style="margin-top:24px">When a blocked caller tries again</h2>
+      <p style="color:var(--muted);margin-top:-6px">The call is turned away with "Network Blocked" (SIP 603+) and where to ask for an unblock, as the FCC requires. Fill in at least one.</p>
+      <div class="row">
+        <label class="f"><span>Unblock phone number</span><input id="rtel" type="text" placeholder="(555) 010-0000" value="${esc(g.redress_tel || "")}"></label>
+        <label class="f"><span>Unblock web page</span><input id="rurl" type="text" placeholder="https://" value="${esc(g.redress_url || "")}"></label>
+        <label class="f"><span>Your network in the call path</span><select id="rloc">${[["LN", "First network (we serve the caller)"], ["TN", "In the middle (transit)"], ["RLN", "Last network (we serve the person called)"], ["LPN", "Caller's private network"], ["RPN", "Called person's private network"]].map(([v, l]) => `<option ${(g.location || "TN") === v ? "selected" : ""} value="${v}">${l}</option>`).join("")}</select></label>
+      </div>
       ${nav(true)}`;
     $$("[data-wm]").forEach(o => o.onclick = () => { read(); draft.warn.mode = o.dataset.wm; renderStep(); });
     loadWarning();
@@ -638,7 +645,7 @@ async function renderStep() {
       <div class="foot"><button class="btn" id="back">Back</button>
         <button class="btn go" id="restartNow">Start ScamStop</button></div>`;
     if (isSip()) {
-      api("snippet?type=" + t).then(r => $("#snip").textContent = r.text);
+      api("snippet?type=" + t).then(r => { $("#snip").textContent = r.text; if ((r.problems || []).length) toast(r.problems[0]); });
       $("#copy").onclick = () => { navigator.clipboard.writeText($("#snip").textContent); toast("Copied."); };
     }
     $("#restartNow").onclick = async () => { const r = await api("restart", {method: "POST"}); toast(r.message); if (r.ok) { $("#restartBanner").classList.remove("show"); setTimeout(() => go("dash"), 1200); } };
@@ -655,7 +662,7 @@ async function renderStep() {
     if (STEP === 3) {
       await save({platform: draft.platform, asterisk: draft.asterisk, freeswitch: draft.freeswitch, warn: draft.warn,
                   dry_run: draft.dry_run, proxy: draft.proxy, rtpengine: draft.rtpengine, redis: draft.redis,
-                  monitor: draft.monitor, centers: draft.centers, evidence: draft.evidence});
+                  monitor: draft.monitor, centers: draft.centers, evidence: draft.evidence, gate: draft.gate});
       toast("Setup saved.");
     }
     STEP++; renderStep();
@@ -683,6 +690,7 @@ function read() {
   if (STEP === 3) {
     draft.dry_run = $("#dry").checked; if ($("#ncb")) draft.centers.never_block_customer_ip = $("#ncb").checked;
     draft.centers.strikes_to_block = +v("stk"); draft.centers.block_ttl_s = +v("ttl"); draft.evidence.transcript = v("tx");
+    if (v("rtel") !== null) Object.assign(draft.gate = draft.gate || {}, {redress_tel: v("rtel"), redress_url: v("rurl"), location: v("rloc")});
   }
 }
 

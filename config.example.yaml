@@ -82,6 +82,16 @@ centers:
   block_ttl_s: 604800            # automatic blocks expire after 7 days (0 = never)
   never_block_customer_ip: true  # if the center IS the customer's IP, hang up but don't block
 
+# Calls from blocked sources are turned away with SIP 603+ "Network Blocked" (ATIS-1000099), which the
+# FCC requires for analytics-based blocking (47 CFR 64.1200(k)(9)). Give at least one place a wrongly
+# blocked caller can ask to be unblocked; it goes in the Reason header of every blocked call.
+gate:
+  enabled: true
+  redress_tel: "(904) 512-8487"  # any US format or +E.164
+  redress_url: ""                # https://...
+  redress_email: ""
+  location: LN                   # LN first network, TN transit, RLN last network, LPN/RPN private networks
+
 evidence:
   kill_log: /var/log/scamstop/kills.jsonl
   flag_log: /var/log/scamstop/flags.jsonl

@@ -171,6 +171,13 @@ class FreeswitchPlatform(Platform):
     def end(self, dlg):
         self.api(f"uuid_kill {dlg.id}")
 
+    def reject(self, dlg, reason):
+        # CALL_REJECTED answers 603. sip_reason sets the Reason header on every FreeSWITCH version;
+        # sip_603plus_* (newer builds) also changes the phrase to "Network Blocked".
+        for var, val in (("sip_reason", reason), ("sip_603plus_reason", reason), ("sip_603plus_passthrough", "true")):
+            self.api(f"uuid_setvar {dlg.id} {var} {val}")
+        self.api(f"uuid_kill {dlg.id} CALL_REJECTED")
+
     def check(self) -> str:
         st = self.api("status").splitlines()
         ver = next((l for l in st if "FreeSWITCH" in l), "FreeSWITCH").strip()

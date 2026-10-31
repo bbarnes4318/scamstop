@@ -18,7 +18,10 @@ DEFAULTS: dict = {
     "freeswitch": {"host": "127.0.0.1", "port": 8021, "password": "ClueCon",
                    "external_regex": "^sofia/(gateway|external)/", "record_dir": "/dev/shm/scamstop",
                    "victim_channel": "left"},
-    "gate": {"enabled": True},
+    "gate": {"enabled": True,
+             # SIP 603+ for analytics-based blocks (FCC 47 CFR 64.1200(k)(9)): where wrongly blocked callers
+             # ask for an unblock (at least one), and where this network sits in the call path (LN/TN/LPN/RPN/RLN)
+             "redress_tel": "", "redress_url": "", "redress_email": "", "location": "TN"},
     # hosted mode: companies sign up in the portal and send calls through your SBC
     "hosted": {"enabled": False, "brand": "ScamStop", "sbc_address": "", "sbc_port": 5060, "sbc_transport": "UDP",
                "default_carrier": "", "default_carrier_label": "Our termination", "auto_approve": False,

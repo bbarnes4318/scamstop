@@ -181,3 +181,23 @@ def test_clean_calls_keep_being_listened_to_across_polls(tmp_path):
     assert d.platform.ended == [] and not finished
     for l in d.listeners["ok@8.8.4.4"]:
         l.stop = True
+
+
+def test_ringing_blocked_call_gets_603_plus(tmp_path):
+    call = Dialog(1, "r@74.81.33.58", "t", "10.0.0.1", state="early")
+    d, _ = daemon(tmp_path, [call], ringing=True, extra={"gate": {"redress_tel": "(904) 512-8487", "location": "LN"}})
+    got = []
+    d.platform.reject = lambda dlg, reason: (got.append(reason), d.platform.end(dlg))
+    d.store.block("host", "74.81.33.58")
+    d.poll_once(set())
+    assert got == ['SIP;cause=603;text="v=analytics1;tel=+19045128487";location=LN']
+    assert d.platform.ended == ["r@74.81.33.58"]
+
+
+def test_answered_blocked_call_is_hung_up_not_rejected(tmp_path):
+    call = Dialog(1, "u@74.81.33.58", "t", "10.0.0.1", state="up")
+    d, _ = daemon(tmp_path, [call], ringing=True)
+    d.platform.reject = lambda dlg, reason: (_ for _ in ()).throw(AssertionError("answered calls get a BYE"))
+    d.store.block("host", "74.81.33.58")
+    d.poll_once(set())
+    assert d.platform.ended == ["u@74.81.33.58"]

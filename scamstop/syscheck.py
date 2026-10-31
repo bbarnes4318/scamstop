@@ -298,6 +298,13 @@ def checks(cfg: dict, det: dict | None = None, status: dict | None = None) -> li
     cores = det.get("cores", 1)
     add("cpu", f"{cores} CPU cores", cores >= 2, f"About {max(1, cores - 1) * 70} calls at once",
         "One core is tight; ScamStop will run but can listen to fewer calls.", warn=True)
+    from . import block603
+    gate = cfg.get("gate", {})
+    bad = block603.problems(gate)
+    add("redress", "Unblock contact on blocked calls (SIP 603+)", not bad,
+        block603.reason(gate) if not bad else " ".join(bad),
+        "In Setup, step 4, enter the phone number or web page where a wrongly blocked caller can ask to be "
+        "unblocked. It is sent with every call ScamStop turns away.", warn=True)
     return out
 
 

@@ -23,7 +23,7 @@ from urllib.parse import parse_qs, urlparse
 
 import yaml
 
-from . import __version__, config as cfgmod, control
+from . import __version__, block603, config as cfgmod, control
 from .rtpengine import RtpEngine
 from .rules import load_rules, normalize
 from .store import KINDS, Store
@@ -694,7 +694,8 @@ def make_handler(panel: Panel):
                     return self._send(200, panel.set_customer(ip, method == "POST"))
                 if method == "GET" and p == "snippet":
                     path = SNIPPETS.get(q.get("type", "opensips"))
-                    return self._send(200, {"text": path.read_text() if path else ""})
+                    return self._send(200, {"text": block603.fill(path.read_text(), panel.cfg().get("gate", {})) if path else "",
+                                            "problems": block603.problems(panel.cfg().get("gate", {}))})
                 if method == "GET" and p == "warning":
                     data = Path(panel.warning_path()).read_bytes()
                     ctype = "audio/wav" if data[:4] == b"RIFF" else "audio/mpeg"

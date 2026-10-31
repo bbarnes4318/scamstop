@@ -198,6 +198,11 @@ class AsteriskPlatform(Platform):
     def end(self, dlg):
         self.req("DELETE", f"/channels/{dlg.id}")
 
+    def reject(self, dlg, reason):
+        # PJSIP answers an unanswered channel hung up with cause 16 (normal) as 603. ARI can't add the
+        # 603+ Reason header or phrase; reason "rejected" would send 403, which the FCC no longer allows here.
+        self.req("DELETE", f"/channels/{dlg.id}", reason="normal")
+
     def check(self) -> str:
         info = self.req("GET", "/asterisk/info", only="system") or {}
         ver = (info.get("system") or {}).get("version", "?")

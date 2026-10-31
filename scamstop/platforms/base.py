@@ -68,6 +68,10 @@ class Platform:
     def end(self, dlg: Dialog) -> None:
         raise NotImplementedError
 
+    def reject(self, dlg: Dialog, reason: str) -> None:
+        """Turn away a ringing call that analytics flagged: SIP 603+ "Network Blocked" with this Reason header."""
+        self.end(dlg)
+
     def media_ip(self, dlg: Dialog) -> str | None:
         return None
 

@@ -23,7 +23,7 @@ import wave
 
 import numpy as np
 
-from . import audio, config as cfgmod, evidence
+from . import audio, block603, config as cfgmod, evidence
 from .control import Dialog
 from .platforms import Platform, number_of
 from .rules import CallMatcher, CampaignGate, Hit, load_rules
@@ -145,7 +145,14 @@ class Enforcer:
         ev = self.cfg["evidence"]
         dry, _, tid = self.settings(dlg)
         if not dry:
-            self.end(dlg)
+            if dlg.state != "up" and self.platform.can_end_ringing:
+                try:
+                    self.platform.reject(dlg, block603.reason(self.cfg.get("gate", {})))
+                except Exception as e:
+                    evidence.log(syslog.LOG_WARNING, f"SCAMSTOP-GATE 603+ reject failed callid={dlg.callid}: {e}; ending the call")
+                    self.end(dlg)
+            else:
+                self.end(dlg)
             self.stats.inc("rejected")
         reason = self.store.r.hget(f"{self.store.p}block:{kind}:why", value) or ""
         evidence.write(ev["kill_log"], {"dry": dry, "tenant": tid, "rule": f"blocked_{kind}", "rule_name": f"Blocked {GATE_LABELS[kind]}",

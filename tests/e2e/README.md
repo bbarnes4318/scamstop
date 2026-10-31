@@ -10,7 +10,7 @@ Verified results (Kamailio 5.7, rtpengine 11.5, SIPp 3.7):
 | From a company not yet approved | 403 at the SBC |
 | Scam script ("officer ... Social Security Administration ... suspended") | caught at ~10 s; the called party hears only the warning (caller silenced); SBC ends the call at ~25 s |
 | Legitimate Medicare agent | untouched, ends normally |
-| From a blocked caller ID | 403 before ringing |
+| From a blocked caller ID | `603 Network Blocked` before ringing, with `Reason: SIP;cause=603;text="v=analytics1;tel=+19045128487";location=LN` |
 
 Setup used: test IPs on `lo` (10.10.10.1 SBC, .2 dialer, .3 carrier, .4 unapproved),
 `deploy/sbc/kamailio-scamstop-sbc.cfg` with SBC_IP=10.10.10.1, rtpengine
