@@ -1,0 +1,2 @@
+# Shell scripts and the Docker build run on Linux: keep LF even when checked out or archived on Windows.
+* text=auto eol=lf
