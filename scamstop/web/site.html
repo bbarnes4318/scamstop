@@ -27,7 +27,7 @@ header nav a:hover{color:var(--ink)}
 .cmd button:hover{background:#2d4566}
 .sub{margin-top:14px;color:var(--muted);font-size:14px}
 .sub a{color:var(--muted)}
-.counters{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin:44px 0 0;max-width:760px}
+.counters[hidden]{display:none}.counters{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin:44px 0 0;max-width:760px}
 .counter{border:1px solid var(--line);border-radius:12px;padding:16px 18px;background:#fff}
 .counter b{display:block;font-size:30px;letter-spacing:-.02em;color:var(--navy)}
 .counter span{font-size:13px;color:var(--muted)}
@@ -71,7 +71,7 @@ footer .wrap{display:flex;gap:20px;flex-wrap:wrap}
   <p class="lead">Free software for carriers, VoIP providers and call centers. It runs on your own switch, listens for the things only scammers say, warns the person being called, and hangs up. Every network running it shares what it catches, so a scam caught anywhere is blocked everywhere.</p>
   <div class="cmd"><span class="p">$</span><span id="cmd">curl -fsSL https://scamstop.pvnvoice.com/install | sudo bash</span><button onclick="copyCmd()">Copy</button></div>
   <div class="sub">Run it on the server where your switch runs. It sets itself up, finds your phone system, and starts in watch-only mode. <a href="#download">Prefer to download the file?</a></div>
-  <div class="counters">
+  <div class="counters" id="counters" hidden>
     <div class="counter"><b id="cNet">–</b><span>networks sharing this week</span></div>
     <div class="counter"><b id="cSrc">–</b><span>scam sources blocked everywhere</span></div>
     <div class="counter"><b id="cStop">–</b><span>scam calls stopped this week</span></div>
@@ -146,6 +146,7 @@ fetch("/v1/stats").then(r=>r.json()).then(s=>{
   document.getElementById("cNet").textContent=f(s.installs_active_7d);
   document.getElementById("cSrc").textContent=f(s.indicators_published);
   document.getElementById("cStop").textContent=f(s.scams_stopped_7d);
+  if (s.installs_active_7d > 0) document.getElementById("counters").hidden = false;
 }).catch(()=>{});
 </script>
 </body>
