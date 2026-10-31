@@ -130,8 +130,8 @@ hosted:
 
 # Shared threat feed. See README "Shared threat feed".
 feed:
-  enabled: false
-  url: null                      # the feed server's address, e.g. https://feed.example.org
+  enabled: true                  # on by default: every network that shares makes every other network safer
+  url: https://scamstop.pvnvoice.com
   name: ""                       # optional, shown to the feed operator
   share: true                    # send the centers / caller IDs you block
   share_manual: true             # include blocks you added by hand

@@ -39,7 +39,7 @@ DEFAULTS: dict = {
                  "transcript": "full", "watch_regex": None},
     "warn": {"mode": "warn_then_hangup", "file": "/var/lib/scamstop/warning.wav", "play_to": "victim",
              "on_flag": False, "max_wait_s": 25},
-    "feed": {"enabled": False, "url": None, "name": "", "share": True, "share_manual": True, "apply": True,
+    "feed": {"enabled": True, "url": "https://scamstop.pvnvoice.com", "name": "", "share": True, "share_manual": True, "apply": True,
              "apply_kinds": ["media", "host", "tag", "cli"], "min_reporters": 1, "block_ttl_s": 259200,
              "sync_s": 300, "never_apply": [], "state_file": "/var/lib/scamstop/feed.json"},
     "smart": {"enabled": True, "mode": "flag", "threshold": 0.85, "kill_threshold": 0.97,

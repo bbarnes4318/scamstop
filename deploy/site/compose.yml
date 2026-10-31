@@ -1,0 +1,21 @@
+# Runs beside the existing Caddy on the same Docker network, so Caddy can reach it as scamstop-site:8095.
+# PORTAL_NETWORK = the network the Caddy container is on (docker inspect portal-caddy).
+services:
+  scamstop-site:
+    build:
+      context: ../..
+      dockerfile: deploy/site/Dockerfile
+    image: scamstop-site:latest
+    container_name: scamstop-site
+    restart: unless-stopped
+    volumes:
+      - scamstop-feed:/data
+    networks: [web]
+
+networks:
+  web:
+    external: true
+    name: ${PORTAL_NETWORK:-portal_default}
+
+volumes:
+  scamstop-feed:

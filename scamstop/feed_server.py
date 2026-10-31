@@ -17,13 +17,15 @@ import hashlib
 import hmac
 import ipaddress
 import json
+import os
 import re
 import secrets
 import sqlite3
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import parse_qs, urlparse
+from pathlib import Path
+from urllib.parse import urlparse
 
 KINDS = ("media", "host", "tag", "cli")
 SCHEMA = """
@@ -210,7 +212,59 @@ body{margin:0;background:#0a0f1c;color:#e8edf7;font:15px/1.5 -apple-system,Segoe
 <p>Join by turning on the shared feed in your ScamStop panel.</p></div></body></html>"""
 
 
-def make_handler(feed: Feed, trust_proxy: bool):
+SITE_PAGE = Path(__file__).parent / "web" / "site.html"
+LATEST = "scamstop-installer-linux-x86_64.run"
+_SAFE = re.compile(r"^[A-Za-z0-9._-]+$")
+
+INSTALL_SH = """#!/bin/sh
+# ScamStop: download the installer from {url} and run it.
+set -e
+if [ "$(id -u)" -ne 0 ]; then echo "Run as root: curl -fsSL {url}/install | sudo bash"; exit 1; fi
+case "$(uname -m)" in x86_64|amd64) ;; *) echo "ScamStop needs a 64-bit Intel/AMD (x86_64) server."; exit 1;; esac
+command -v curl >/dev/null || {{ echo "curl is required"; exit 1; }}
+TMP=$(mktemp -d /tmp/scamstop.XXXXXX)
+trap 'rm -rf "$TMP"' EXIT INT TERM
+echo "Downloading ScamStop (about 230 MB)..."
+curl -fL --progress-bar -o "$TMP/{latest}" "{url}/download/{latest}"
+curl -fsSL -o "$TMP/SHA256SUMS" "{url}/download/SHA256SUMS"
+( cd "$TMP" && grep " {latest}$" SHA256SUMS | sha256sum -c - >/dev/null ) || {{ echo "Download is corrupted; try again."; exit 1; }}
+sh "$TMP/{latest}" "$@"
+"""
+
+
+class Downloads:
+    """Files offered at /download/, plus a SHA256SUMS computed once per file version."""
+
+    def __init__(self, folder: str | None):
+        self.dir = Path(folder) if folder else None
+        self._sums: dict[str, tuple[float, str]] = {}
+
+    def path(self, name: str) -> Path | None:
+        if not self.dir or not _SAFE.fullmatch(name):
+            return None
+        p = self.dir / name
+        return p if p.is_file() else None
+
+    def sha256(self, p: Path) -> str:
+        m = p.stat().st_mtime
+        hit = self._sums.get(p.name)
+        if hit and hit[0] == m:
+            return hit[1]
+        h = hashlib.sha256()
+        with open(p, "rb") as f:
+            while b := f.read(1 << 20):
+                h.update(b)
+        self._sums[p.name] = (m, h.hexdigest())
+        return h.hexdigest()
+
+    def sums(self) -> str:
+        if not self.dir or not self.dir.is_dir():
+            return ""
+        files = sorted(p for p in self.dir.iterdir() if p.is_file() and p.suffix == ".run")
+        return "".join(f"{self.sha256(p)}  {p.name}\n" for p in files)
+
+
+def make_handler(feed: Feed, trust_proxy: bool, downloads: Downloads | None = None, public_url: str = ""):
     class H(BaseHTTPRequestHandler):
         server_version = "ScamStopFeed"
 
@@ -230,7 +284,8 @@ def make_handler(feed: Feed, trust_proxy: bool):
             for k, v in (extra or {}).items():
                 self.send_header(k, v)
             self.end_headers()
-            self.wfile.write(data)
+            if not getattr(self, "_head_only", False):
+                self.wfile.write(data)
 
         def body(self) -> dict:
             n = int(self.headers.get("Content-Length") or 0)
@@ -238,10 +293,41 @@ def make_handler(feed: Feed, trust_proxy: bool):
                 raise ValueError("body too large")
             return json.loads(self.rfile.read(n) or b"{}") if n else {}
 
+        def do_HEAD(self):
+            self._head_only = True
+            self.do_GET()
+
+        def write_body(self, data: bytes):
+            if not getattr(self, "_head_only", False):
+                self.wfile.write(data)
+
         def do_GET(self):
             u = urlparse(self.path)
             if u.path == "/":
+                if downloads is not None and SITE_PAGE.exists():
+                    return self.send(200, SITE_PAGE.read_bytes(), "text/html; charset=utf-8",
+                                     {"Cache-Control": "public, max-age=300"})
                 return self.send(200, (PUBLIC_PAGE % feed.stats()).encode(), "text/html; charset=utf-8")
+            if u.path == "/install" and downloads is not None:
+                url = public_url or f"https://{self.headers.get('Host', 'localhost')}"
+                return self.send(200, INSTALL_SH.format(url=url.rstrip("/"), latest=LATEST).encode(), "text/x-shellscript")
+            if u.path == "/download/SHA256SUMS" and downloads is not None:
+                return self.send(200, downloads.sums().encode(), "text/plain")
+            if u.path.startswith("/download/") and downloads is not None:
+                p = downloads.path(u.path[len("/download/"):])
+                if not p:
+                    return self.send(404, {"error": "not found"})
+                size = p.stat().st_size
+                self.send_response(200)
+                self.send_header("Content-Type", "application/octet-stream")
+                self.send_header("Content-Length", str(size))
+                self.send_header("Content-Disposition", f'attachment; filename="{p.name}"')
+                self.end_headers()
+                if not getattr(self, "_head_only", False):
+                    with open(p, "rb") as f:
+                        while b := f.read(1 << 20):
+                            self.wfile.write(b)
+                return
             if u.path == "/v1/stats":
                 return self.send(200, feed.stats())
             if u.path == "/v1/indicators":
@@ -272,8 +358,11 @@ def make_handler(feed: Feed, trust_proxy: bool):
     return H
 
 
-def serve(db: str, host: str, port: int, min_networks: int, ttl_days: int, trust_proxy: bool):
+def serve(db: str, host: str, port: int, min_networks: int, ttl_days: int, trust_proxy: bool,
+          downloads: str | None = None, public_url: str = ""):
+    os.makedirs(os.path.dirname(os.path.abspath(db)), exist_ok=True)
     feed = Feed(db, min_networks, ttl_days)
-    httpd = ThreadingHTTPServer((host, port), make_handler(feed, trust_proxy))
+    httpd = ThreadingHTTPServer((host, port), make_handler(feed, trust_proxy, Downloads(downloads) if downloads else None,
+                                                          public_url))
     print(f"ScamStop feed on http://{host}:{port}  db={db}  min_networks={min_networks}  ttl={ttl_days}d")
     httpd.serve_forever()

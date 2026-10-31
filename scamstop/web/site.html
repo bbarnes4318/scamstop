@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ScamStop: stop scam calls on your phone network</title>
+<meta name="description" content="Free software for carriers, VoIP providers and call centers. It listens for scam calls on your own switch, warns the person being called, hangs up, and shares what it catches with every other network.">
+<style>
+:root{--ink:#0d1b2a;--muted:#55657a;--line:#e3e8ef;--paper:#f7f9fb;--navy:#003359;--green:#3cb26e;--green-d:#2b8d55;--red:#d9434f;--font:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+body{margin:0;background:#fff;color:var(--ink);font:17px/1.6 var(--font);-webkit-font-smoothing:antialiased}
+a{color:var(--navy)}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+header{border-bottom:1px solid var(--line)}
+header .wrap{display:flex;align-items:center;height:68px;gap:12px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:19px;color:var(--navy);text-decoration:none;letter-spacing:-.01em}
+header nav{margin-left:auto;display:flex;gap:26px;font-size:15px}
+header nav a{text-decoration:none;color:var(--muted)}
+header nav a:hover{color:var(--ink)}
+.hero{padding:76px 0 56px;background:linear-gradient(180deg,#f2f7fb 0%,#fff 100%)}
+.hero h1{font-size:50px;line-height:1.08;letter-spacing:-.03em;margin:0 0 18px;max-width:780px}
+.hero p.lead{font-size:20px;color:var(--muted);max-width:680px;margin:0 0 32px}
+.cmd{display:flex;align-items:center;gap:12px;background:var(--ink);color:#e6edf6;border-radius:12px;padding:16px 18px;font:15px/1.4 var(--mono);max-width:760px;overflow:auto}
+.cmd span{white-space:nowrap}
+.cmd .p{color:#7f93ad;user-select:none}
+.cmd button{margin-left:auto;background:#22344c;color:#fff;border:0;border-radius:8px;padding:8px 14px;font:600 13px var(--font);cursor:pointer;flex:none}
+.cmd button:hover{background:#2d4566}
+.sub{margin-top:14px;color:var(--muted);font-size:14px}
+.sub a{color:var(--muted)}
+.counters{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin:44px 0 0;max-width:760px}
+.counter{border:1px solid var(--line);border-radius:12px;padding:16px 18px;background:#fff}
+.counter b{display:block;font-size:30px;letter-spacing:-.02em;color:var(--navy)}
+.counter span{font-size:13px;color:var(--muted)}
+section{padding:72px 0;border-top:1px solid var(--line)}
+section h2{font-size:32px;letter-spacing:-.02em;margin:0 0 10px}
+section p.intro{color:var(--muted);max-width:680px;margin:0 0 36px}
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+.step{background:var(--paper);border-radius:14px;padding:22px}
+.step .n{width:30px;height:30px;border-radius:50%;background:var(--navy);color:#fff;display:grid;place-items:center;font-weight:700;font-size:14px;margin-bottom:12px}
+.step h3{margin:0 0 6px;font-size:17px}
+.step p{margin:0;color:var(--muted);font-size:15px}
+.quote{border-left:4px solid var(--green);background:var(--paper);padding:18px 22px;border-radius:0 12px 12px 0;font-style:italic;color:#29405c;margin:28px 0 0;max-width:760px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.card{border:1px solid var(--line);border-radius:14px;padding:22px}
+.card h3{margin:0 0 6px;font-size:17px}
+.card p{margin:0;color:var(--muted);font-size:15px}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th,td{text-align:left;padding:12px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:600;font-size:13px}
+.faq details{border-bottom:1px solid var(--line);padding:16px 0}
+.faq summary{cursor:pointer;font-weight:650;font-size:17px}
+.faq p{color:var(--muted);margin:10px 0 0}
+.dl{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:8px;background:var(--green);color:#fff;text-decoration:none;font-weight:700;padding:13px 22px;border-radius:10px}
+.btn:hover{background:var(--green-d)}
+.btn.ghost{background:none;color:var(--navy);border:1px solid var(--line)}
+code{font-family:var(--mono);font-size:14px;background:var(--paper);padding:2px 6px;border-radius:5px}
+footer{border-top:1px solid var(--line);padding:30px 0;color:var(--muted);font-size:14px}
+footer .wrap{display:flex;gap:20px;flex-wrap:wrap}
+@media (max-width:860px){.hero h1{font-size:36px}.steps{grid-template-columns:1fr 1fr}.grid2{grid-template-columns:1fr}.counters{grid-template-columns:1fr}header nav{display:none}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <a class="logo" href="/"><svg width="28" height="28" viewBox="0 0 24 24"><path fill="none" stroke="#3cb26e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M12 3l8 3v6c0 4.5-3.3 8.3-8 9-4.7-.7-8-4.5-8-9V6l8-3z"/><path fill="none" stroke="#3cb26e" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4"/></svg>ScamStop</a>
+  <nav><a href="#how">How it works</a><a href="#works-with">Works with</a><a href="#download">Download</a><a href="#faq">Questions</a></nav>
+</div></header>
+
+<div class="hero"><div class="wrap">
+  <h1>Stop scam calls on your phone network before anyone loses money.</h1>
+  <p class="lead">Free software for carriers, VoIP providers and call centers. It runs on your own switch, listens for the things only scammers say, warns the person being called, and hangs up. Every network running it shares what it catches, so a scam caught anywhere is blocked everywhere.</p>
+  <div class="cmd"><span class="p">$</span><span id="cmd">curl -fsSL https://scamstop.pvnvoice.com/install | sudo bash</span><button onclick="copyCmd()">Copy</button></div>
+  <div class="sub">Run it on the server where your switch runs. It sets itself up, finds your phone system, and starts in watch-only mode. <a href="#download">Prefer to download the file?</a></div>
+  <div class="counters">
+    <div class="counter"><b id="cNet">–</b><span>networks sharing this week</span></div>
+    <div class="counter"><b id="cSrc">–</b><span>scam sources blocked everywhere</span></div>
+    <div class="counter"><b id="cStop">–</b><span>scam calls stopped this week</span></div>
+  </div>
+</div></div>
+
+<section id="how"><div class="wrap">
+  <h2>How it works</h2>
+  <p class="intro">ScamStop sits beside your switch. Your calls stay on your network and your carrier, under your own signing, the same as today.</p>
+  <div class="steps">
+    <div class="step"><div class="n">1</div><h3>It listens</h3><p>It transcribes calls on your own server, both the caller and the person being called. Nothing goes to any cloud.</p></div>
+    <div class="step"><div class="n">2</div><h3>It recognizes the scam</h3><p>Gift-card and Bitcoin demands, fake government and bank calls, grandparent and bail stories, tech-support tricks, and reworded scripts it has never heard before.</p></div>
+    <div class="step"><div class="n">3</div><h3>It warns and hangs up</h3><p>The scammer is silenced, the person hears a short warning, and the call ends. You choose: warn and hang up, warn only, or hang up right away.</p></div>
+    <div class="step"><div class="n">4</div><h3>It blocks them everywhere</h3><p>Repeat offenders are blocked on your network, and shared with every other network running ScamStop.</p></div>
+  </div>
+  <div class="quote">"Warning. This call shows signs of a scam. Do not buy gift cards, send money, or share any account numbers. Hang up now, and call your bank or your family directly, using a number you already know."</div>
+</div></section>
+
+<section id="works-with"><div class="wrap">
+  <h2>Works with the switch you already run</h2>
+  <p class="intro">Setup finds your phone system and fills in the settings. You don't edit your switch config.</p>
+  <table>
+    <tr><th>Phone system</th><th>How ScamStop connects</th></tr>
+    <tr><td><b>ViciDial, ViciBox, FreePBX, Issabel</b> (Asterisk 16.6+)</td><td>Asterisk's built-in ARI. One click in setup turns it on.</td></tr>
+    <tr><td><b>FreeSWITCH, FusionPBX</b></td><td>FreeSWITCH's built-in event socket.</td></tr>
+    <tr><td><b>OpenSIPS</b> 3.x with rtpengine 11+</td><td>The dialog module and rtpengine's audio copy.</td></tr>
+    <tr><td><b>Kamailio</b> 5.x with rtpengine 11+</td><td>The dialog module and rtpengine's audio copy.</td></tr>
+  </table>
+</div></section>
+
+<section><div class="wrap">
+  <h2>Built to be trusted on a production switch</h2>
+  <div class="grid2">
+    <div class="card"><h3>Starts in watch-only mode</h3><p>For the first days it only logs what it would stop. You read every flagged call, with the words that triggered it, before turning on hang-ups.</p></div>
+    <div class="card"><h3>Legitimate calls go through</h3><p>It matches phrases only scammers use. Insurance agents asking for a Medicare number or a bank routing number are left alone.</p></div>
+    <div class="card"><h3>Your data stays on your server</h3><p>Transcripts are kept only for stopped calls, on your server. The shared feed carries blocked IPs, dialer tags and spoofed caller IDs only: never audio, transcripts or the numbers people were calling.</p></div>
+    <div class="card"><h3>A control panel in your browser</h3><p>See every stopped call and what was said, choose which rules hang up, manage blocks, and review the smart check before it is allowed to act.</p></div>
+  </div>
+</div></section>
+
+<section id="download"><div class="wrap">
+  <h2>Download</h2>
+  <p class="intro">One file holds everything: Python, every library and the speech model. It works on Debian, Ubuntu, RHEL, Alma, Rocky, Fedora and openSUSE, on 64-bit Intel or AMD servers.</p>
+  <div class="dl">
+    <a class="btn" id="dlBtn" href="/download/scamstop-installer-linux-x86_64.run">Download the installer</a>
+    <a class="btn ghost" href="/download/SHA256SUMS">SHA-256 checksum</a>
+  </div>
+  <p style="margin-top:22px">Then on your server: <code>sudo sh scamstop-installer-linux-x86_64.run</code>. Run it again any time to upgrade; your settings are kept.</p>
+</div></section>
+
+<section id="faq" class="faq"><div class="wrap">
+  <h2>Questions</h2>
+  <details><summary>Is it free?</summary><p>Yes. Install it on as many switches as you like.</p></details>
+  <details><summary>Do my calls go through anyone else's network?</summary><p>No. ScamStop runs on your server and your calls stay on your network and your carrier, the same as today. The only thing that leaves your server is the shared feed: the scam sources you block, so others can block them too. You can turn that off in the panel.</p></details>
+  <details><summary>Does it record calls?</summary><p>It transcribes calls as they happen so it can hear a scam. It keeps the transcript only for calls it stops or flags, on your server, so you can see why. You can set it to keep a few sentences or nothing.</p></details>
+  <details><summary>What if it hangs up on a real call?</summary><p>It starts in watch-only mode so you can check it on your own traffic first. Every rule can be set to hang up, flag only, or off, and you can mark any call "not a scam" to unblock its source.</p></details>
+  <details><summary>How much server does it need?</summary><p>About one CPU core for every 70 calls it listens to at the same time, and 2 GB of memory. No GPU.</p></details>
+  <details><summary>Can my company's own VoIP calls be protected without installing anything?</summary><p>Yes, if you buy your VoIP from PVN Voice. ScamStop is built into PVN Voice's network. Call (904) 512-8487.</p></details>
+  <details><summary>Are there legal requirements?</summary><p>Listening to call content is regulated, and the rules differ by state and country. Check with your telecom attorney before turning on hang-ups. The panel lets you keep as little as you need.</p></details>
+</div></section>
+
+<footer><div class="wrap">
+  <span>ScamStop is free software from PVN Voice.</span>
+  <span>(904) 512-8487</span>
+  <a href="https://pvnvoice.com">pvnvoice.com</a>
+</div></footer>
+
+<script>
+function copyCmd(){navigator.clipboard.writeText(document.getElementById("cmd").textContent);const b=event.target;b.textContent="Copied";setTimeout(()=>b.textContent="Copy",1600)}
+fetch("/v1/stats").then(r=>r.json()).then(s=>{
+  const f=n=>Number(n||0).toLocaleString();
+  document.getElementById("cNet").textContent=f(s.installs_active_7d);
+  document.getElementById("cSrc").textContent=f(s.indicators_published);
+  document.getElementById("cStop").textContent=f(s.scams_stopped_7d);
+}).catch(()=>{});
+</script>
+</body>
+</html>

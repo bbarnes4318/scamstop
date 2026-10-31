@@ -41,7 +41,7 @@ def daemon(tmp_path, calls, ringing=False, extra=None):
     cfgp = tmp_path / "config.yaml"
     user = {"dry_run": False, "redis": {"customer_key": None},
             "evidence": {"kill_log": str(tmp_path / "kills.jsonl"), "flag_log": str(tmp_path / "flags.jsonl")},
-            "warn": {"file": str(tmp_path / "w.wav")}, "smart": {"enabled": False},
+            "warn": {"file": str(tmp_path / "w.wav")}, "smart": {"enabled": False}, "feed": {"enabled": False},
             "status_file": str(tmp_path / "status.json"), "metrics": {"textfile": None}}
     user.update(extra or {})
     cfgp.write_text(yaml.safe_dump(user))

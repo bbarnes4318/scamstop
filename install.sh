@@ -148,6 +148,9 @@ echo
 echo "   Open:      https://${IP:-this-server}:$PORT"
 echo "   Password:  $(cat "$ETC/panel-password" 2>/dev/null || echo "in $ETC/panel-password once the panel starts")"
 echo
+echo "   Shared feed: on. Your ScamStop shares the scam sources it blocks (IPs, dialer tags, spoofed caller IDs;"
+echo "   never audio, transcripts or called numbers) and blocks what other networks catch. Turn it off under Shared feed."
+echo
 echo "   Your browser will warn about the certificate the first time (it's self-signed); continue anyway."
 echo "   Then open Setup: your phone system was detected and the settings are filled in."
 echo

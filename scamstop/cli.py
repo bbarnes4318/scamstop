@@ -184,7 +184,7 @@ def cmd_feed_sync(cfg, a):
 
 def cmd_feed_server(cfg, a):
     from .feed_server import serve
-    serve(a.db, a.host, a.port, a.min_networks, a.ttl_days, a.trust_proxy)
+    serve(a.db, a.host, a.port, a.min_networks, a.ttl_days, a.trust_proxy, a.downloads, a.public_url)
     return 0
 
 
@@ -314,6 +314,8 @@ def main(argv=None):
     s.add_argument("--min-networks", type=int, default=2, help="distinct /24s that must report an indicator")
     s.add_argument("--ttl-days", type=int, default=14)
     s.add_argument("--trust-proxy", action="store_true", help="read client IP from X-Forwarded-For")
+    s.add_argument("--downloads", default=None, help="serve the public site, /install and these installer files")
+    s.add_argument("--public-url", default="", help="e.g. https://scamstop.pvnvoice.com (used in /install)")
     s = sub.add_parser("feed-admin", help="manage a feed server's installs and indicators")
     s.add_argument("--db", default="/var/lib/scamstop-feed/feed.db")
     s.add_argument("action", choices=["installs", "trust", "untrust", "ban", "unban", "allow", "unallow", "delete"])

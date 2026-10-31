@@ -131,3 +131,35 @@ def test_state_file_hides_key(server, tmp_path):
     a.sync()
     assert "key" not in a.public_state() and a.public_state()["install_id"].startswith("ss_")
     assert oct((tmp_path / "a.json").stat().st_mode)[-3:] == "600"
+
+
+def test_public_site_install_script_and_downloads(tmp_path):
+    import hashlib
+    import urllib.error
+    import urllib.request
+    from scamstop.feed_server import Downloads
+    d = tmp_path / "dl"
+    d.mkdir()
+    blob = b"#!/bin/sh\necho installer\n" * 100
+    (d / "scamstop-installer-linux-x86_64.run").write_bytes(blob)
+    (d / "secret.txt").write_text("nope")
+    f = feed(tmp_path, min_networks=1)
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(f, False, Downloads(str(d)), "https://scamstop.example.net"))
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    base = f"http://127.0.0.1:{srv.server_address[1]}"
+    try:
+        page = urllib.request.urlopen(base + "/").read().decode()
+        assert "curl -fsSL https://scamstop.pvnvoice.com/install | sudo bash" in page and "/v1/stats" in page
+        sh = urllib.request.urlopen(base + "/install").read().decode()
+        assert "https://scamstop.example.net/download/scamstop-installer-linux-x86_64.run" in sh and "sha256sum -c" in sh
+        assert urllib.request.urlopen(base + "/download/scamstop-installer-linux-x86_64.run").read() == blob
+        sums = urllib.request.urlopen(base + "/download/SHA256SUMS").read().decode()
+        assert sums == f"{hashlib.sha256(blob).hexdigest()}  scamstop-installer-linux-x86_64.run\n"
+        for bad in ("/download/..%2Fsecret.txt", "/download/../feed.db", "/download/missing.run"):
+            with pytest.raises(urllib.error.HTTPError):
+                urllib.request.urlopen(base + bad)
+        req = urllib.request.Request(base + "/download/scamstop-installer-linux-x86_64.run", method="HEAD")
+        r = urllib.request.urlopen(req)
+        assert r.headers["Content-Length"] == str(len(blob)) and r.read() == b""
+    finally:
+        srv.shutdown()
