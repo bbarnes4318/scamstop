@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scamstop"
+version = "0.6.0"
+description = "Hang up on phone scams in real time, at the carrier."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+dependencies = ["pyyaml>=6", "numpy>=1.24,<2.3", "redis>=5"]
+
+[project.optional-dependencies]
+live = ["sherpa-onnx>=1.10"]
+test = ["pytest>=8", "fakeredis>=2.20"]
+
+[project.scripts]
+scamstop = "scamstop.cli:main"
+
+[tool.setuptools]
+packages = ["scamstop", "scamstop.platforms"]
+
+[tool.setuptools.package-data]
+scamstop = ["rules/*.yaml", "web/*.html", "snippets/*.cfg", "audio_files/*.wav", "models/*.npz"]

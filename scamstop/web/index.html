@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ScamStop</title>
+<style>
+:root{
+  --bg:#0a0f1c; --panel:#111829; --panel2:#162036; --line:#22304d; --text:#e8edf7; --muted:#8a97b3; --dim:#5d6a87;
+  --green:#22c983; --green-bg:rgba(34,201,131,.12); --amber:#f5b544; --amber-bg:rgba(245,181,68,.12);
+  --red:#ff5d6c; --red-bg:rgba(255,93,108,.12); --blue:#5b8cff; --blue-bg:rgba(91,140,255,.12);
+  --r:14px; --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 var(--font);-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--blue)}
+.app{display:grid;grid-template-columns:232px 1fr;min-height:100vh}
+nav{background:var(--panel);border-right:1px solid var(--line);padding:22px 14px;display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;letter-spacing:-.01em;padding:0 10px 22px}
+.brand svg{flex:none}
+.nav-item{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:10px;color:var(--muted);cursor:pointer;border:0;background:none;text-align:left;width:100%;font-weight:500}
+.nav-item:hover{background:var(--panel2);color:var(--text)}
+.nav-item.on{background:var(--blue-bg);color:var(--text)}
+.nav-item.on svg{color:var(--blue)}
+.nav-foot{margin-top:auto;padding:12px;color:var(--dim);font-size:12px}
+main{padding:28px 36px 60px;max-width:1180px;width:100%}
+h1{font-size:24px;letter-spacing:-.02em;margin:0 0 4px}
+h2{font-size:15px;margin:0 0 14px;letter-spacing:-.01em}
+.sub{color:var(--muted);margin:0 0 24px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:20px}
+.grid{display:grid;gap:16px}
+.g4{grid-template-columns:repeat(4,1fr)} .g2{grid-template-columns:1.5fr 1fr}
+.stat .n{font-size:30px;font-weight:700;letter-spacing:-.03em;margin-top:6px}
+.stat .l{color:var(--muted);font-size:13px}
+.hero{display:flex;align-items:center;gap:20px;padding:24px;margin-bottom:16px}
+.hero .ic{width:60px;height:60px;border-radius:16px;display:grid;place-items:center;flex:none}
+.hero h2{font-size:19px;margin:0 0 3px}
+.hero p{margin:0;color:var(--muted)}
+.hero .act{margin-left:auto;display:flex;gap:10px}
+.m-protecting .ic{background:var(--green-bg);color:var(--green)}
+.m-watching .ic{background:var(--amber-bg);color:var(--amber)}
+.m-offline .ic{background:var(--red-bg);color:var(--red)}
+.pill{display:inline-flex;align-items:center;gap:7px;padding:5px 11px;border-radius:99px;font-size:12px;font-weight:600}
+.pill i{width:7px;height:7px;border-radius:50%;background:currentColor}
+.p-green{background:var(--green-bg);color:var(--green)} .p-amber{background:var(--amber-bg);color:var(--amber)}
+.p-red{background:var(--red-bg);color:var(--red)} .p-blue{background:var(--blue-bg);color:var(--blue)} .p-gray{background:var(--panel2);color:var(--muted)}
+.btn{border:1px solid var(--line);background:var(--panel2);padding:9px 16px;border-radius:10px;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+.btn:hover{border-color:#34466d}
+.btn.pri{background:var(--blue);border-color:var(--blue);color:#fff}
+.btn.pri:hover{filter:brightness(1.08)}
+.btn.go{background:var(--green);border-color:var(--green);color:#04210f}
+.btn.danger{color:var(--red)}
+.btn.sm{padding:6px 11px;font-size:13px}
+.btn:disabled{opacity:.5;cursor:default}
+label.f{display:block;margin-bottom:16px}
+label.f span{display:block;font-weight:600;margin-bottom:6px}
+label.f small{display:block;color:var(--muted);margin-top:5px}
+label.f small span{display:inline;font-weight:400;margin:0}
+input[type=text],input[type=password],input[type=number],select,textarea{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-bg)}
+textarea{resize:vertical;min-height:90px}
+.row{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap}
+.row>*{flex:1}
+.choice{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:18px}
+.opt{border:1px solid var(--line);border-radius:12px;padding:16px;cursor:pointer;background:var(--bg)}
+.opt b{display:block;margin-bottom:3px}
+.opt small{color:var(--muted)}
+.opt.on{border-color:var(--blue);background:var(--blue-bg)}
+.steps{display:flex;gap:8px;margin-bottom:22px}
+.step{flex:1;display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:12px;background:var(--panel);border:1px solid var(--line);color:var(--muted);font-weight:600;font-size:13px;cursor:pointer}
+.step .d{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:var(--panel2);font-size:12px;flex:none}
+.step.on{border-color:var(--blue);color:var(--text)} .step.on .d{background:var(--blue);color:#fff}
+.step.done .d{background:var(--green);color:#04210f}
+.test{display:flex;align-items:center;gap:12px;margin:2px 0 6px}
+.res{font-size:13px} .res.ok{color:var(--green)} .res.bad{color:var(--red)}
+.foot{display:flex;justify-content:space-between;margin-top:22px;padding-top:18px;border-top:1px solid var(--line)}
+.toggle{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:16px;border:1px solid var(--line);border-radius:12px;background:var(--bg);margin-bottom:16px}
+.toggle b{display:block} .toggle small{color:var(--muted)}
+.sw{position:relative;width:46px;height:26px;flex:none}
+.sw input{opacity:0;width:0;height:0}
+.sw span{position:absolute;inset:0;background:var(--line);border-radius:99px;cursor:pointer;transition:.15s}
+.sw span:before{content:"";position:absolute;width:20px;height:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.15s}
+.sw input:checked+span{background:var(--green)} .sw input:checked+span:before{transform:translateX(20px)}
+.feed{display:flex;flex-direction:column;gap:10px}
+.ev{border:1px solid var(--line);border-radius:12px;background:var(--bg);padding:14px 16px;cursor:pointer}
+.ev:hover{border-color:#2e3f63}
+.ev-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.ev-name{font-weight:650}
+.ev-time{margin-left:auto;color:var(--dim);font-size:12px}
+.ev-q{margin-top:6px;color:var(--muted)}
+.ev-q mark,.tx mark{background:var(--red-bg);color:var(--red);padding:0 3px;border-radius:4px}
+.ev-meta{margin-top:8px;display:flex;gap:16px;color:var(--dim);font-size:12px;flex-wrap:wrap}
+.tx{display:none;margin-top:12px;padding:12px;border-radius:10px;background:var(--panel);font-size:13px;color:var(--muted);line-height:1.6}
+.ev.open .tx{display:block}
+.empty{padding:40px;text-align:center;color:var(--muted)}
+.bars{display:flex;align-items:flex-end;gap:4px;height:120px;margin-top:6px}
+.bars div{flex:1;background:var(--blue);border-radius:4px 4px 0 0;min-height:2px;opacity:.85}
+.bars div.z{background:var(--line)}
+.axis{display:flex;justify-content:space-between;color:var(--dim);font-size:11px;margin-top:6px}
+.top li{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line)}
+.top li:last-child{border:0}
+.top{list-style:none;margin:0;padding:0}
+.rule{display:flex;align-items:center;gap:16px;padding:14px 0;border-bottom:1px solid var(--line)}
+.rule:last-child{border:0}
+.rule .t{flex:1;min-width:0}
+.rule .t small{display:block;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.seg{display:inline-flex;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:3px;flex:none}
+.seg button{border:0;background:none;padding:6px 12px;border-radius:7px;cursor:pointer;color:var(--muted);font-weight:600;font-size:12px}
+.seg button.on.off{background:var(--panel2);color:var(--text)}
+.seg button.on.flag{background:var(--amber-bg);color:var(--amber)}
+.seg button.on.kill{background:var(--red-bg);color:var(--red)}
+.cat{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin:22px 0 2px;font-weight:700}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;color:var(--dim);font-size:12px;font-weight:600;padding:8px 10px;border-bottom:1px solid var(--line)}
+td{padding:11px 10px;border-bottom:1px solid var(--line)}
+td.mono,.mono{font-family:var(--mono);font-size:13px}
+pre.code{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:16px;max-height:340px;overflow:auto;font:12px/1.55 var(--mono);color:#b9c4dc;margin:0}
+.banner{display:none;align-items:center;gap:14px;padding:12px 16px;border-radius:12px;background:var(--amber-bg);color:var(--amber);margin-bottom:18px;font-weight:600}
+.banner.show{display:flex}
+.banner .btn{margin-left:auto}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--panel2);border:1px solid var(--line);padding:12px 16px;border-radius:12px;opacity:0;transform:translateY(10px);transition:.2s;pointer-events:none;z-index:9}
+.toast.show{opacity:1;transform:none}
+.login{min-height:100vh;display:grid;place-items:center;padding:20px}
+.login .card{width:380px;padding:32px}
+.login .brand{padding:0 0 8px;justify-content:center;font-size:22px}
+.hidden{display:none!important}
+.hits{margin-top:14px}
+.review{display:flex;align-items:center;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line);flex-wrap:wrap}
+.meter{height:8px;background:var(--bg);border-radius:99px;overflow:hidden;border:1px solid var(--line)}
+.meter i{display:block;height:100%;background:var(--green)}
+.hit{display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:10px;background:var(--bg);border:1px solid var(--line);margin-top:8px}
+@media (max-width:900px){.app{grid-template-columns:1fr}nav{position:static;height:auto;flex-direction:row;overflow:auto}.brand{padding:0 10px}.nav-foot{display:none}.g4{grid-template-columns:1fr 1fr}.g2{grid-template-columns:1fr}main{padding:20px}.steps{flex-wrap:wrap}.hero{flex-wrap:wrap}.hero .act{margin-left:0}}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-shield" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 3l8 3v6c0 4.5-3.3 8.3-8 9-4.7-.7-8-4.5-8-9V6l8-3z"/><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="i-off" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M12 7v6M12 16.5v.5"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M3 12l9-8 9 8M5 10v10h14V10"/></symbol>
+  <symbol id="i-plug" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M9 2v6M15 2v6M6 8h12v4a6 6 0 01-12 0V8zM12 18v4"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></symbol>
+  <symbol id="i-ban" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path stroke="currentColor" stroke-width="2" d="M5.6 5.6l12.8 12.8"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path fill="none" stroke="currentColor" stroke-width="2" d="M3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M17 21v-2a4 4 0 00-4-4H7a4 4 0 00-4 4v2M10 11a4 4 0 100-8 4 4 0 000 8zM21 21v-2a4 4 0 00-3-3.9M16 3.1a4 4 0 010 7.8"/></symbol>
+</svg>
+
+<!-- login -->
+<div id="login" class="login hidden">
+  <div class="card" style="width:400px">
+    <div class="brand"><svg width="28" height="28" style="color:var(--green)"><use href="#i-shield"/></svg><span class="brandName">ScamStop</span></div>
+    <div id="tenantAuth" class="hidden">
+      <div class="seg" style="display:flex;margin:6px 0 20px" id="authTabs"><button class="on kill" data-tab="in" style="flex:1">Sign in</button><button data-tab="up" style="flex:1">Create account</button></div>
+      <form id="tenantForm">
+        <label class="f hidden" id="nameRow"><span>Company name</span><input id="tName" type="text" autocomplete="organization"></label>
+        <label class="f"><span>Email</span><input id="tEmail" type="email" autocomplete="email"></label>
+        <label class="f"><span>Password</span><input id="tPw" type="password" autocomplete="current-password"><small id="pwHint" class="hidden">At least 10 characters.</small></label>
+        <button class="btn pri" style="width:100%;justify-content:center" id="tSubmit">Sign in</button>
+        <p id="tErr" class="res bad" style="text-align:center"></p>
+      </form>
+      <p style="text-align:center;margin:8px 0 0"><a href="#" id="toAdmin" style="color:var(--dim);font-size:12px">Administrator sign-in</a></p>
+    </div>
+    <div id="adminAuth">
+      <p class="sub" style="text-align:center;margin-bottom:22px">Administrator password.<br><small>Saved on the server as <span class="mono">/etc/scamstop/panel-password</span>.</small></p>
+      <form id="loginForm">
+        <label class="f"><input id="pw" type="password" placeholder="Password" autocomplete="current-password"></label>
+        <button class="btn pri" style="width:100%;justify-content:center">Sign in</button>
+        <p id="loginErr" class="res bad" style="text-align:center"></p>
+      </form>
+      <p style="text-align:center;margin:8px 0 0" class="hidden" id="toTenantWrap"><a href="#" id="toTenant" style="color:var(--dim);font-size:12px">Company sign-in</a></p>
+    </div>
+  </div>
+</div>
+
+<div id="app" class="app hidden">
+  <nav>
+    <div class="brand"><svg width="26" height="26" style="color:var(--green)"><use href="#i-shield"/></svg><span class="brandName">ScamStop</span></div>
+    <button class="nav-item" data-v="dash" data-role="both"><svg width="18" height="18"><use href="#i-home"/></svg>Dashboard</button>
+    <button class="nav-item" data-v="setup" data-role="admin"><svg width="18" height="18"><use href="#i-plug"/></svg>Setup</button>
+    <button class="nav-item" data-v="check" data-role="admin"><svg width="18" height="18"><use href="#i-shield"/></svg>System check</button>
+    <button class="nav-item" data-v="rules" data-role="admin"><svg width="18" height="18"><use href="#i-list"/></svg>Scam rules</button>
+    <button class="nav-item" data-v="blocks" data-role="admin"><svg width="18" height="18"><use href="#i-ban"/></svg>Blocked</button>
+    <button class="nav-item" data-v="feed" data-role="admin"><svg width="18" height="18"><use href="#i-globe"/></svg>Shared feed</button>
+    <button class="nav-item" data-v="customers" data-role="admin"><svg width="18" height="18"><use href="#i-users"/></svg>Customers</button>
+    <button class="nav-item" data-v="companies" data-role="admin"><svg width="18" height="18"><use href="#i-users"/></svg>Companies <span class="pill p-amber" id="pendingBadge" style="margin-left:auto;padding:2px 8px" hidden></span></button>
+    <button class="nav-item" data-v="connect" data-role="tenant"><svg width="18" height="18"><use href="#i-plug"/></svg>Connect</button>
+    <button class="nav-item" data-v="settings" data-role="tenant"><svg width="18" height="18"><use href="#i-shield"/></svg>Protection</button>
+    <div class="nav-foot"><div id="whoami" style="margin-bottom:6px;color:var(--muted)"></div><a href="#" id="signOut" style="color:var(--dim)">Sign out</a> · <span id="ver"></span></div>
+  </nav>
+
+  <main>
+    <div class="banner" id="restartBanner">Changes saved. Restart ScamStop to apply them.
+      <button class="btn sm" id="restartBtn">Restart now</button></div>
+
+    <!-- dashboard -->
+    <section data-view="dash">
+      <h1>Dashboard</h1>
+      <p class="sub">Scam calls stopped on your network today.</p>
+      <div class="card hero" id="hero"></div>
+      <div class="grid g4" style="margin-bottom:16px">
+        <div class="card stat"><div class="l">Scams stopped today</div><div class="n" id="sStopped">–</div></div>
+        <div class="card stat"><div class="l">Call centers blocked</div><div class="n" id="sBlocked">–</div></div>
+        <div class="card stat"><div class="l">Calls listened to now</div><div class="n" id="sActive">–</div></div>
+        <div class="card stat"><div class="l">Flagged for review today</div><div class="n" id="sFlags">–</div></div>
+      </div>
+      <div class="grid g2" style="margin-bottom:16px">
+        <div class="card"><h2>Today by hour</h2><div class="bars" id="bars"></div><div class="axis"><span>12 am</span><span>6 am</span><span>12 pm</span><span>6 pm</span><span>11 pm</span></div></div>
+        <div class="card"><h2>Top scam types today</h2><ul class="top" id="top"></ul></div>
+      </div>
+      <div class="card">
+        <div style="display:flex;align-items:center;margin-bottom:14px"><h2 style="margin:0">Live feed</h2><span class="pill p-gray" style="margin-left:10px" id="feedCount"></span><span style="margin-left:auto;color:var(--dim);font-size:12px">Click a call to read what was said</span></div>
+        <div class="feed" id="feed"></div>
+      </div>
+    </section>
+
+    <!-- setup -->
+    <section data-view="setup" class="hidden">
+      <h1>Setup</h1>
+      <p class="sub">Connect ScamStop to your switch in four steps. Test each connection before moving on.</p>
+      <div class="steps" id="steps"></div>
+      <div class="card" id="stepBody"></div>
+    </section>
+
+    <!-- system check -->
+    <section data-view="check" class="hidden">
+      <h1>System check</h1>
+      <p class="sub" id="checkSummary">Everything ScamStop needs on this server, with the fix for anything missing.</p>
+      <div class="card"><div style="display:flex;justify-content:flex-end;margin-bottom:6px"><button class="btn sm" id="recheck">Check again</button></div><div id="checkList"></div></div>
+    </section>
+
+    <!-- rules -->
+    <section data-view="rules" class="hidden">
+      <h1>Scam rules</h1>
+      <p class="sub">Choose what happens when a caller says each kind of scam phrase. <b style="color:var(--red)">Hang up</b> ends the call, <b style="color:var(--amber)">Flag</b> only logs it.</p>
+      <div class="card" style="margin-bottom:16px" id="smartCard"></div>
+      <div class="card" style="margin-bottom:16px">
+        <h2>Try it</h2>
+        <textarea id="scanText" placeholder="Paste what a caller said, e.g. &quot;you need to go buy google play cards and read me the numbers on the back&quot;"></textarea>
+        <div style="margin-top:10px"><button class="btn pri" id="scanBtn">Check</button></div>
+        <div class="hits" id="scanOut"></div>
+      </div>
+      <div class="card" id="rulesList"></div>
+    </section>
+
+    <!-- blocks -->
+    <section data-view="blocks" class="hidden">
+      <h1>Blocked</h1>
+      <p class="sub">Call centers, caller IDs and numbers your switch rejects before the phone rings. Automatic blocks expire on their own.</p>
+      <div class="card" style="margin-bottom:16px">
+        <h2>Add a block</h2>
+        <div class="row">
+          <label class="f" style="flex:1.2"><span>What to block</span>
+            <select id="bKind">
+              <option value="media">Call center (dialer media IP)</option>
+              <option value="host">Call center (Call-ID IP)</option>
+              <option value="tag">Hosted dialer account (CNX tag)</option>
+              <option value="cli">Spoofed caller ID</option>
+              <option value="dnc">Number never to call</option>
+              <option value="src">Entire SIP source IP</option>
+            </select></label>
+          <label class="f"><span>Value</span><input id="bVal" type="text" placeholder="203.0.113.7"></label>
+          <label class="f" style="flex:.7"><span>For</span>
+            <select id="bTtl"><option value="86400">1 day</option><option value="604800">7 days</option><option value="2592000" selected>30 days</option><option value="0">Forever</option></select></label>
+          <label class="f" style="flex:1.2"><span>Reason</span><input id="bWhy" type="text" placeholder="Traceback request, complaint…"></label>
+          <label class="f" style="flex:none"><button class="btn pri" id="bAdd">Block</button></label>
+        </div>
+      </div>
+      <div class="card" id="blockList"></div>
+    </section>
+
+    <!-- feed -->
+    <section data-view="feed" class="hidden">
+      <h1>Shared feed</h1>
+      <p class="sub">Join other networks running ScamStop. You share the call centers and spoofed caller IDs you block, and you get theirs, so a center caught anywhere is blocked here before it calls.</p>
+      <div class="grid g4" style="margin-bottom:16px">
+        <div class="card stat"><div class="l">Blocked by the feed now</div><div class="n" id="fActive">–</div></div>
+        <div class="card stat"><div class="l">Sources in the feed</div><div class="n" id="fRecv">–</div></div>
+        <div class="card stat"><div class="l">You're sharing</div><div class="n" id="fShared">–</div></div>
+        <div class="card stat"><div class="l">Last sync</div><div class="n" id="fLast" style="font-size:20px;margin-top:12px">–</div></div>
+      </div>
+      <div class="card" id="feedForm"></div>
+    </section>
+
+    <!-- companies (admin, hosted) -->
+    <section data-view="companies" class="hidden">
+      <h1>Companies</h1>
+      <p class="sub">Companies that send their calls through your SBC. New sign-ups wait for your approval before the SBC accepts their traffic.</p>
+      <div class="card" style="margin-bottom:16px" id="hostedCard"></div>
+      <div class="card" id="companyList"></div>
+    </section>
+
+    <!-- connect (tenant) -->
+    <section data-view="connect" class="hidden">
+      <h1>Connect</h1>
+      <p class="sub">Send your calls through us. Nothing to install: point your dialer or phone system at our SBC, and we check every call and pass it on to your carrier.</p>
+      <div id="connectBody"></div>
+    </section>
+
+    <!-- settings (tenant) -->
+    <section data-view="settings" class="hidden">
+      <h1>Protection</h1>
+      <p class="sub">What happens when someone on your calls sounds like a scammer.</p>
+      <div class="card" id="tenantSettings"></div>
+    </section>
+
+    <!-- customers -->
+    <section data-view="customers" class="hidden">
+      <h1>Customers</h1>
+      <p class="sub">The SIP source IPs whose calls ScamStop listens to.</p>
+      <div class="card" style="margin-bottom:16px" id="custMode"></div>
+      <div class="card" id="custList"></div>
+    </section>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let TOKEN = ""; try { TOKEN = localStorage.getItem("scamstop_pw") || ""; } catch (e) {}
+let CFG = null, VIEW = "dash", STEP = 0, timer = null, FEED_N = 12;
+
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), 2600); }
+
+async function api(path, opts = {}) {
+  const r = await fetch("/api/" + path, {method: opts.method || "GET",
+    headers: {"Authorization": "Bearer " + TOKEN, "Content-Type": "application/json"},
+    body: opts.body ? JSON.stringify(opts.body) : undefined});
+  if (r.status === 401) { showLogin(); throw new Error("auth"); }
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+
+let ROLE = "admin", PUB = {hosted: false, brand: "ScamStop"}, ME = null;
+function setBrand(b) { $$(".brandName").forEach(e => e.textContent = b); document.title = b; }
+function showLogin() {
+  $("#app").classList.add("hidden"); $("#login").classList.remove("hidden"); clearInterval(timer);
+  const hosted = PUB.hosted;
+  $("#tenantAuth").classList.toggle("hidden", !hosted); $("#adminAuth").classList.toggle("hidden", hosted);
+  $("#toTenantWrap").classList.toggle("hidden", !hosted);
+  $("#authTabs").classList.toggle("hidden", !PUB.signup_open);
+}
+function saveToken(t) { TOKEN = t; try { localStorage.setItem("scamstop_pw", t); } catch (e) {} }
+$("#toAdmin").onclick = e => { e.preventDefault(); $("#tenantAuth").classList.add("hidden"); $("#adminAuth").classList.remove("hidden"); };
+$("#toTenant").onclick = e => { e.preventDefault(); $("#adminAuth").classList.add("hidden"); $("#tenantAuth").classList.remove("hidden"); };
+let TAB = "in";
+$$("#authTabs button").forEach(b => b.onclick = () => {
+  TAB = b.dataset.tab; $$("#authTabs button").forEach(x => { x.classList.toggle("on", x === b); x.classList.toggle("kill", x === b); });
+  $("#nameRow").classList.toggle("hidden", TAB !== "up"); $("#pwHint").classList.toggle("hidden", TAB !== "up");
+  $("#tSubmit").textContent = TAB === "up" ? "Create account" : "Sign in"; $("#tErr").textContent = "";
+});
+async function postPublic(path, body) {
+  const r = await fetch("/api/" + path, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+  const j = await r.json(); if (!r.ok) throw new Error(j.error || r.statusText); return j;
+}
+$("#tenantForm").onsubmit = async e => {
+  e.preventDefault();
+  try {
+    const body = {email: $("#tEmail").value.trim(), password: $("#tPw").value};
+    if (TAB === "up") body.name = $("#tName").value.trim();
+    const r = await postPublic(TAB === "up" ? "signup" : "login", body);
+    saveToken(r.token); start();
+  } catch (err) { $("#tErr").textContent = err.message; }
+};
+$("#loginForm").onsubmit = async e => {
+  e.preventDefault();
+  try { const r = await postPublic("login", {password: $("#pw").value.trim()}); saveToken(r.token); start(); }
+  catch (err) { $("#loginErr").textContent = err.message === "wrong password" ? "Wrong password." : err.message; }
+};
+$("#signOut").onclick = e => { e.preventDefault(); try { localStorage.removeItem("scamstop_pw"); } catch (x) {} TOKEN = ""; location.reload(); };
+
+async function start() {
+  $("#login").classList.add("hidden"); $("#app").classList.remove("hidden");
+  const st = await api("status");
+  ROLE = st.role || "admin";
+  $$("[data-role]").forEach(b => b.classList.toggle("hidden", !(b.dataset.role === "both" || b.dataset.role === ROLE)));
+  $("#companiesNav") && 0;
+  $("#ver").textContent = "v" + st.version;
+  if (ROLE === "tenant") {
+    ME = await api("me");
+    $("#whoami").textContent = ME.tenant.name;
+    go(!ME.tenant.ips.length || !ME.tenant.route ? "connect" : "dash");
+    return;
+  }
+  $("#whoami").textContent = "Administrator";
+  $$('[data-v="companies"]').forEach(b => b.classList.toggle("hidden", !PUB.hosted));
+  CFG = (await api("config")).config;
+  CFG_SAVED = st.configured;
+  if (PUB.hosted) refreshPending();
+  go(st.configured ? "dash" : "setup");
+}
+
+function go(v) {
+  VIEW = v;
+  $$(".nav-item").forEach(b => b.classList.toggle("on", b.dataset.v === v));
+  $$("main section").forEach(s => s.classList.toggle("hidden", s.dataset.view !== v));
+  clearInterval(timer);
+  ({dash: loadDash, check: () => loadCheck(true), setup: renderStep, rules: loadRules, blocks: loadBlocks, customers: loadCustomers,
+    feed: loadFeed, companies: loadCompanies, connect: loadConnect, settings: loadTenantSettings})[v]();
+  if (v === "dash") timer = setInterval(loadDash, 5000);
+  if (v === "connect") timer = setInterval(() => loadConnect(true), 8000);
+}
+$$(".nav-item").forEach(b => b.onclick = () => go(b.dataset.v));
+
+function needRestart() { $("#restartBanner").classList.add("show"); }
+$("#restartBtn").onclick = async () => {
+  const r = await api("restart", {method: "POST"});
+  if (r.ok) { $("#restartBanner").classList.remove("show"); toast("ScamStop restarted."); } else toast(r.message);
+};
+async function save(patch, quiet) {
+  const r = await api("config", {method: "POST", body: patch}); CFG = r.config;
+  if (r.restart && r.restart.length) needRestart(); else if (!quiet) toast("Applied. No restart needed.");
+}
+
+// ---------------- dashboard ----------------
+function ago(ts) { const s = Date.now() / 1000 - ts; if (s < 60) return "just now"; if (s < 3600) return Math.floor(s / 60) + " min ago"; if (s < 86400) return Math.floor(s / 3600) + " h ago"; return new Date(ts * 1000).toLocaleDateString(); }
+function num(uri) { return esc((uri || "").replace(/^sips?:/, "").split("@")[0]); }
+function highlight(text, phrase) {
+  const t = esc(text), p = esc(phrase); if (!p) return t;
+  const i = t.indexOf(p); return i < 0 ? t : t.slice(0, i) + "<mark>" + p + "</mark>" + t.slice(i + p.length);
+}
+
+async function loadDash() {
+  let st, ev;
+  try { [st, ev] = await Promise.all([api("status"), api("events?limit=60")]); } catch (e) { return; }
+  const H = {
+    protecting: ["i-shield", "Protecting your network", {warn_then_hangup: "When a scam is heard, the person is warned and the call is ended. Repeat offenders are blocked.", warn_only: "When a scam is heard, the person is warned. Repeat offenders are blocked.", off: "Scam calls are hung up as they happen, and repeat offenders are blocked."}[ROLE === "tenant" ? (st.tenant || {}).warn_mode : CFG.warn.mode], ""],
+    watching: ["i-eye", "Watching only", "ScamStop is listening and logging what it would stop, but nothing is hung up yet. Check the feed, then turn protection on.", `<button class="btn go" id="armBtn">Turn on protection</button>`],
+    pending: ["i-eye", "Your account is waiting for approval", "We review every new account before the SBC accepts its calls. Meanwhile, finish the Connect page so you're ready the moment it's approved.", `<button class="btn pri" onclick="go('connect')">Finish connecting</button>`],
+    setup: ["i-plug", "Finish connecting", "Add the IPs you send calls from and where calls should go after checking.", `<button class="btn pri" onclick="go('connect')">Go to Connect</button>`],
+    suspended: ["i-off", "Your account is suspended", "Contact support to restore service.", ""],
+    offline: ["i-off", ROLE === "tenant" ? "Protection is temporarily unavailable" : "ScamStop is not running", st.configured ? "Start the service: sudo systemctl start scamstop" : "Finish setup to connect ScamStop to your switch.", st.configured ? "" : `<button class="btn pri" onclick="go('setup')">Go to setup</button>`],
+  }[st.mode];
+  const dm = (st.daemon || {}).model || {};
+  if (dm.state === "downloading") { H[0] = "i-eye"; H[1] = `Downloading the speech model: ${dm.percent || 0}%`; H[2] = "One-time download, about 500 MB. ScamStop starts listening as soon as it finishes."; H[3] = ""; }
+  if ((st.daemon || {}).platform_error) H[2] = "Can't reach your phone system: " + st.daemon.platform_error;
+  if (ROLE === "admin" && ((st.daemon || {}).restart_needed || []).length) needRestart();
+  $("#hero").className = "card hero m-" + st.mode;
+  $("#hero").innerHTML = `<div class="ic"><svg width="30" height="30"><use href="#${H[0]}"/></svg></div>
+    <div><h2>${H[1]}</h2><p>${esc(H[2])}</p></div><div class="act">${H[3]}</div>`;
+  const arm = $("#armBtn"); if (arm) arm.onclick = async () => {
+    if (ROLE === "tenant") { await api("me", {method: "POST", body: {dry_run: false}}); toast("Protection is on."); loadDash(); }
+    else { await save({dry_run: false}); }
+  };
+  if (ROLE === "tenant" && st.mode === "protecting" && !st.last_call) $("#hero p").textContent = "Waiting for your first call through the SBC.";
+  $("#sStopped").innerHTML = st.dry_run ? `${st.would_stop_today}<span style="font-size:13px;color:var(--amber);font-weight:600;margin-left:8px">would stop</span>` : st.stopped_today;
+  $("#sBlocked").textContent = st.redis_ok ? st.centers_blocked : "–";
+  $("#sActive").textContent = st.running && st.active_calls != null ? st.active_calls : (ROLE === "tenant" ? (st.last_call ? ago(st.last_call) : "–") : "–");
+  $("#sActive").previousElementSibling.textContent = ROLE === "tenant" ? "Last call through us" : "Calls listened to now";
+  $("#sBlocked").previousElementSibling.textContent = ROLE === "tenant" ? "Scam sources blocked today" : "Call centers blocked";
+  $("#sFlags").textContent = st.flags_today;
+  const mx = Math.max(1, ...st.hourly);
+  $("#bars").innerHTML = st.hourly.map((v, h) => `<div class="${v ? "" : "z"}" style="height:${Math.max(2, v / mx * 100)}%" title="${h}:00 — ${v}"></div>`).join("");
+  $("#top").innerHTML = st.top_rules.length ? st.top_rules.map(r => `<li><span>${esc(r.name)}</span><b>${r.count}</b></li>`).join("") : `<li style="color:var(--muted)">Nothing yet today.</li>`;
+  $("#feedCount").textContent = ev.length + " recent";
+  const more = ev.length > FEED_N; ev = ev.slice(0, FEED_N);
+  const open = new Set($$(".ev.open").map(e => e.dataset.k));
+  $("#feed").innerHTML = ev.length ? ev.map(e => {
+    const k = esc(e.callid + e.rule);
+    const tag = e.kind === "flag" ? `<span class="pill p-amber"><i></i>Flagged${e.warned ? " · warned" : ""}</span>`
+      : e.dry ? `<span class="pill p-amber"><i></i>Would stop</span>`
+      : e.warned && e.hung_up === false ? `<span class="pill p-amber"><i></i>Warned</span>`
+      : e.warned ? `<span class="pill p-red"><i></i>Warned, then hung up</span>` : `<span class="pill p-red"><i></i>Hung up</span>`;
+    const blk = (e.side === "victim" ? `<span class="pill p-gray">Heard from the person called</span>` : "")
+      + (e.center_blocked ? `<span class="pill p-blue">Center blocked</span>` : "");
+    return `<div class="ev ${open.has(k) ? "open" : ""}" data-k="${k}">
+      <div class="ev-top">${tag}<span class="ev-name">${esc(e.rule_name || e.rule)}</span>${blk}<span class="ev-time">${ago(e.ts)}</span></div>
+      <div class="ev-q">${e.rule === "smart_check" ? `Why: ${esc(e.matched)}` : `“…${esc(e.matched)}…”`}</div>
+      <div class="ev-meta">${e.to ? `<span>To ${num(e.to)}</span>` : ""}${e.from ? `<span>From ${num(e.from)}</span>` : ""}${e.center ? `<span>Center ${esc(e.center)}${e.strikes ? " · strike " + e.strikes : ""}</span>` : ""}${e.src ? `<span>Customer ${esc(e.src)}</span>` : ""}</div>
+      <div class="tx">${e.transcript ? highlight(e.transcript, e.matched) : "<i>Transcript not stored.</i>"}
+        <div class="review">${e.label ? `<span class="pill ${e.label === "scam" ? "p-green" : "p-gray"}">You marked: ${e.label === "scam" ? "correct" : "not a scam"}</span>` : ""}
+          <span style="color:var(--dim);font-size:12px">Was this a scam?</span>
+          <button class="btn sm" data-lab="scam" data-cid="${esc(e.callid)}" data-rule="${esc(e.rule)}">Yes, correct</button>
+          <button class="btn sm" data-lab="not_scam" data-cid="${esc(e.callid)}" data-rule="${esc(e.rule)}">Not a scam</button></div></div></div>`;
+  }).join("") + (more ? `<button class="btn" id="moreBtn" style="align-self:center;margin-top:6px">Show more</button>` : "")
+    : `<div class="empty">No scam calls yet. When one is caught, it shows up here with what was said.</div>`;
+  $$(".ev").forEach(el => el.onclick = e => { if (!e.target.closest(".review")) el.classList.toggle("open"); });
+  $$("[data-lab]").forEach(b => b.onclick = async e => {
+    e.stopPropagation();
+    await api("label", {method: "POST", body: {callid: b.dataset.cid, rule: b.dataset.rule, label: b.dataset.lab}});
+    toast(b.dataset.lab === "scam" ? "Marked correct." : "Marked not a scam. Thanks, this trains the smart check."); loadDash();
+  });
+  const mb = $("#moreBtn"); if (mb) mb.onclick = () => { FEED_N += 24; loadDash(); };
+}
+
+// ---------------- setup wizard ----------------
+const STEPS = ["Your phone system", "Connect", "Calls to watch", "Protection"];
+const PLAT = {
+  opensips: ["OpenSIPS", "With rtpengine handling media"],
+  kamailio: ["Kamailio", "With rtpengine handling media"],
+  asterisk: ["Asterisk", "ViciDial, ViciBox, FreePBX, Issabel (16.6+)"],
+  freeswitch: ["FreeSWITCH", "FusionPBX and other FreeSWITCH systems"],
+};
+let draft = null, DET = null, CFG_SAVED = false;
+const ptype = () => (draft.platform && draft.platform.type) || draft.proxy.type;
+const isSip = () => ["opensips", "kamailio"].includes(ptype());
+
+async function runDetect(force) {
+  if (DET && !force) return DET;
+  try { DET = await api("syscheck"); } catch (e) { DET = {detect: {}, checks: []}; }
+  return DET;
+}
+
+async function renderStep() {
+  if (!draft) draft = JSON.parse(JSON.stringify(CFG));
+  draft.platform = draft.platform || {type: null};
+  $("#steps").innerHTML = STEPS.concat(["Finish"]).map((s, i) =>
+    `<div class="step ${i === STEP ? "on" : i < STEP ? "done" : ""}" data-i="${i}"><span class="d">${i < STEP ? "✓" : i + 1}</span>${s}</div>`).join("");
+  $$(".step").forEach(s => s.onclick = () => { read(); STEP = +s.dataset.i; renderStep(); });
+  const b = $("#stepBody"), t = ptype();
+  const nav = (last) => `<div class="foot"><button class="btn" ${STEP ? "" : "disabled"} id="back">Back</button>
+      <button class="btn pri" id="next">${last ? "Save setup" : "Continue"}</button></div>`;
+  const test = (what, label) => `<div class="test"><button class="btn sm" data-test="${what}">${label || "Test connection"}</button><span class="res" id="res-${what}"></span></div>`;
+
+  if (STEP === 0) {
+    b.innerHTML = `<div id="detBox" class="toggle" style="margin-bottom:18px"><div><b>Looking at this server…</b><small>Finding your phone system and its settings.</small></div></div>
+      <h2>Which phone system runs your calls?</h2>
+      <div class="choice">${Object.entries(PLAT).map(([k, [n, d]]) => `<div class="opt ${t === k ? "on" : ""}" data-px="${k}"><b>${n}</b><small>${d}</small></div>`).join("")}</div>
+      ${nav()}`;
+    $$("[data-px]").forEach(o => o.onclick = () => { draft.platform.type = o.dataset.px; if (isSip()) draft.proxy.type = o.dataset.px; renderStep(); });
+    runDetect().then(det => {
+      const d = det.detect || {}, box = $("#detBox"); if (!box) return;
+      if (d.platform) {
+        const v = (d.found[d.platform] || {}).version;
+        if (!CFG_SAVED && ptype() !== d.platform) {   // first run: point at what we found
+          draft.platform.type = d.platform; if (isSip()) draft.proxy.type = d.platform;
+          $$("[data-px]").forEach(o => o.classList.toggle("on", o.dataset.px === d.platform));
+        }
+        box.innerHTML = `<div><b>Found ${esc(d.label)}${v ? " " + esc(v) : ""} on this server</b><small>ScamStop read its settings. Use them to fill in setup for you.</small></div>
+          <button class="btn go" id="useDet">Use these settings</button>`;
+        $("#useDet").onclick = async () => {
+          const r = await api("syscheck/apply", {method: "POST"});
+          CFG = r.config; draft = JSON.parse(JSON.stringify(CFG)); toast("Settings filled in from your server."); STEP = 1; renderStep();
+        };
+      } else {
+        box.innerHTML = `<div><b>No phone system found on this server</b><small>If ScamStop runs on a different machine, pick yours below and enter its address.</small></div>`;
+      }
+    });
+  } else if (STEP === 1) {
+    let body = "";
+    if (t === "opensips") {
+      const via = draft.proxy.url ? "http" : "fifo";
+      body = `<label class="f"><span>Connect through</span><select id="via"><option value="fifo" ${via === "fifo" ? "selected" : ""}>MI FIFO file (same server)</option><option value="http" ${via === "http" ? "selected" : ""}>mi_http URL</option></select></label>
+        ${via === "fifo" ? `<label class="f"><span>FIFO path</span><input id="fifo" type="text" value="${esc(draft.proxy.fifo || "/run/opensips/opensips_fifo")}"></label>`
+          : `<label class="f"><span>mi_http URL</span><input id="url" type="text" value="${esc(draft.proxy.url || "http://127.0.0.1:8888/mi")}"></label>`}`;
+    } else if (t === "kamailio") {
+      body = `<label class="f"><span>JSON-RPC URL</span><input id="url" type="text" value="${esc(draft.proxy.url || "http://127.0.0.1:5071/RPC")}"><small>Where Kamailio's jsonrpcs module answers over xhttp.</small></label>`;
+    } else if (t === "asterisk") {
+      const a = draft.asterisk;
+      body = `<div class="toggle"><div><b>ARI (Asterisk REST Interface)</b><small>ScamStop uses stock ARI to hear calls and play the warning. One click turns it on and creates a user. Your config files are backed up first.</small></div><button class="btn" id="fixAri">Set up ARI for me</button></div>
+        <div class="row"><label class="f" style="flex:2"><span>ARI address</span><input id="aUrl" type="text" value="${esc(a.url)}"></label>
+          <label class="f"><span>User</span><input id="aUser" type="text" value="${esc(a.user)}"></label>
+          <label class="f"><span>Password</span><input id="aPw" type="password" value="${esc(a.password)}"></label></div>
+        <label class="f"><span>Calls to protect: channel name pattern</span><input id="aRx" type="text" value="${esc(a.external_regex)}"><small>Matches the leg toward the person being called, usually your carrier trunk, e.g. <span class="mono">^SIP/fractel-</span>. Agent phones should not match.</small></label>`;
+    } else {
+      const f = draft.freeswitch;
+      body = `<div class="row"><label class="f" style="flex:2"><span>Event socket host</span><input id="fHost" type="text" value="${esc(f.host)}"></label>
+          <label class="f"><span>Port</span><input id="fPort" type="number" value="${esc(f.port)}"></label>
+          <label class="f"><span>Password</span><input id="fPw" type="password" value="${esc(f.password)}"></label></div>
+        <label class="f"><span>Calls to protect: channel name pattern</span><input id="fRx" type="text" value="${esc(f.external_regex)}"><small>Matches the leg toward the person being called, usually your gateway, e.g. <span class="mono">^sofia/gateway/mycarrier/</span>.</small></label>`;
+    }
+    const rtp = isSip() ? `<h2 style="margin-top:22px">rtpengine</h2>
+      <p style="color:var(--muted);margin:0 0 14px">ScamStop asks rtpengine for a silent copy of each call's audio. Nobody on the call hears anything. Needs rtpengine 11 or newer.</p>
+      <div class="row"><label class="f"><span>Host</span><input id="rh" type="text" value="${esc(draft.rtpengine.host)}"></label>
+      <label class="f" style="flex:.4"><span>NG control port</span><input id="rp" type="number" value="${esc(draft.rtpengine.port)}"></label></div>${test("rtpengine")}` : "";
+    const chans = !isSip() ? `<div style="margin-top:6px"><button class="btn sm" id="showCh">Show calls on the system right now</button><div id="chList" style="margin-top:10px"></div></div>` : "";
+    b.innerHTML = `<h2>Connect to ${esc(PLAT[t][0])}</h2>${body}${test("platform")}${chans}${rtp}${nav()}`;
+    const via_ = $("#via"); if (via_) via_.onchange = () => { draft.proxy.url = via_.value === "http" ? "http://127.0.0.1:8888/mi" : null; renderStep(); };
+    const fa = $("#fixAri"); if (fa) fa.onclick = async () => {
+      fa.disabled = true; fa.textContent = "Setting up…";
+      try { const r = await api("syscheck/fix", {method: "POST", body: {action: "fix_ari"}}); CFG = (await api("config")).config;
+        draft.asterisk = JSON.parse(JSON.stringify(CFG.asterisk)); draft.platform.type = "asterisk"; toast(r.message); renderStep(); }
+      catch (e) { toast(e.message); fa.disabled = false; fa.textContent = "Set up ARI for me"; }
+    };
+    const sc = $("#showCh"); if (sc) sc.onclick = async () => {
+      read(); await save({platform: draft.platform, asterisk: draft.asterisk, freeswitch: draft.freeswitch}, true);
+      try { const r = await api("platform/channels", {method: "POST"});
+        $("#chList").innerHTML = r.channels.length ? r.channels.map(c => `<div class="mono" style="padding:3px 0;color:${c.matched ? "var(--green)" : "var(--muted)"}">${c.matched ? "✓ protected" : "· not matched"}&nbsp;&nbsp;${esc(c.name)}</div>`).join("")
+          : `<span style="color:var(--muted)">No calls right now. Try again during a call.</span>`; }
+      catch (e) { $("#chList").innerHTML = `<span class="res bad">${esc(e.message)}</span>`; }
+    };
+  } else if (STEP === 2) {
+    const all = !draft.redis.customer_key;
+    b.innerHTML = `<h2>Redis and which calls to watch</h2>
+      <label class="f"><span>Redis URL</span><input id="ru" type="text" value="${esc(draft.redis.url)}"><small>Block lists and strikes live here. The installer sets it up.</small></label>
+      ${test("redis")}
+      ${isSip() ? `<h2 style="margin-top:22px">Listen to</h2>
+      <div class="choice">
+        <div class="opt ${all ? "on" : ""}" data-all="1"><b>Every call</b><small>Simplest. Excludes the IPs listed below.</small></div>
+        <div class="opt ${all ? "" : "on"}" data-all="0"><b>Only customers I list</b><small>Add their source IPs on the Customers page.</small></div>
+      </div>` : `<p style="color:var(--muted)">Calls are chosen by the channel pattern from the previous step.</p>`}
+      <div class="toggle"><div><b>Also listen to the person being called</b><small>Victims give scams away ("you want me to buy gift cards?") even when the scammer is careful. Uses about twice the CPU.</small></div>
+        <label class="sw"><input type="checkbox" id="lv" ${draft.monitor.listen_victim ? "checked" : ""}><span></span></label></div>
+      ${isSip() ? `<label class="f"><span>Never listen to these IPs</span><input id="ex" type="text" value="${esc((draft.monitor.exclude_ips || []).join(", "))}"><small>Comma separated, e.g. your own AI voice agents.</small></label>` : ""}
+      ${nav()}`;
+    $$("[data-all]").forEach(o => o.onclick = () => { read(); draft.redis.customer_key = o.dataset.all === "1" ? null : "sbc:cust:{ip}"; renderStep(); });
+  } else if (STEP === 3) {
+    const c = draft.centers, wm = draft.warn.mode;
+    b.innerHTML = `<h2>When ScamStop hears a scam</h2>
+      <div class="choice">
+        <div class="opt ${wm === "warn_then_hangup" ? "on" : ""}" data-wm="warn_then_hangup"><b>Warn the person, then hang up</b><small>Recommended. The person hears the warning, then the call ends.</small></div>
+        <div class="opt ${wm === "warn_only" ? "on" : ""}" data-wm="warn_only"><b>Warn only</b><small>The person hears the warning and the call continues. Gentlest option.</small></div>
+        <div class="opt ${wm === "off" ? "on" : ""}" data-wm="off"><b>Hang up right away</b><small>No warning. The call just ends.</small></div>
+      </div>
+      <div class="toggle ${wm === "off" ? "hidden" : ""}" style="align-items:center"><div style="flex:1"><b>Warning message</b><small>Played only to the person being called. Use the built-in recording or upload your own (WAV or MP3).</small>
+        <audio id="warnAudio" controls style="width:100%;margin-top:10px;height:36px"></audio></div>
+        <div style="display:flex;flex-direction:column;gap:8px"><label class="btn sm" style="justify-content:center">Upload<input id="warnFile" type="file" accept="audio/*" hidden></label><button class="btn sm" id="warnReset">Use built-in</button></div></div>
+      <h2 style="margin-top:24px">How hard should ScamStop hit?</h2>
+      <div class="toggle"><div><b>Watch-only mode</b><small>Recommended for your first week: log what would be stopped without hanging up anything.</small></div>
+        <label class="sw"><input type="checkbox" id="dry" ${draft.dry_run ? "checked" : ""}><span></span></label></div>
+      <div class="row">
+        <label class="f"><span>Block a ${isSip() ? "call center" : "caller ID"} after</span><select id="stk">${[1, 2, 3, 5].map(n => `<option ${c.strikes_to_block == n ? "selected" : ""} value="${n}">${n} scam call${n > 1 ? "s" : ""}</option>`).join("")}</select></label>
+        <label class="f"><span>Keep it blocked for</span><select id="ttl">${[[86400, "1 day"], [604800, "7 days"], [2592000, "30 days"], [0, "Forever"]].map(([v, l]) => `<option ${c.block_ttl_s == v ? "selected" : ""} value="${v}">${l}</option>`).join("")}</select></label>
+        <label class="f"><span>Save transcripts of stopped calls</span><select id="tx">${[["full", "Full transcript"], ["window", "Last few sentences"], ["none", "Don't save"]].map(([v, l]) => `<option ${draft.evidence.transcript === v ? "selected" : ""} value="${v}">${l}</option>`).join("")}</select></label>
+      </div>
+      ${isSip() ? `<div class="toggle"><div><b>Never block my customer's own IP</b><small>If the center behind a scam call is your customer's IP, hang up the call but don't block the whole customer.</small></div>
+        <label class="sw"><input type="checkbox" id="ncb" ${c.never_block_customer_ip ? "checked" : ""}><span></span></label></div>` : ""}
+      ${nav(true)}`;
+    $$("[data-wm]").forEach(o => o.onclick = () => { read(); draft.warn.mode = o.dataset.wm; renderStep(); });
+    loadWarning();
+    const wf = $("#warnFile"); if (wf) wf.onchange = async () => {
+      const f = wf.files[0]; if (!f) return;
+      const r = await fetch("/api/warning", {method: "POST", headers: {"Authorization": "Bearer " + TOKEN}, body: f});
+      const j = await r.json(); toast(r.ok ? "Warning uploaded." : j.error); loadWarning();
+    };
+    const wr = $("#warnReset"); if (wr) wr.onclick = async () => { await api("warning", {method: "DELETE"}); toast("Using the built-in warning."); loadWarning(); };
+  } else {
+    b.innerHTML = `<h2>You're ready</h2>
+      <div class="toggle"><div><b>No changes to your switch needed</b><small>ScamStop ends calls from blocked call centers, caller IDs and numbers by itself${isSip() ? ", as soon as they connect" : ", even while they're still ringing"}.</small></div><span class="pill p-green"><i></i>Done</span></div>
+      ${isSip() ? `<details style="margin-bottom:16px"><summary style="cursor:pointer;font-weight:600">Optional: reject blocked calls before they ring</summary>
+        <p style="color:var(--muted)">Paste this into the route that handles new INVITEs, before the call is relayed, then reload ${esc(PLAT[t][0])}. It also needs the Redis module shown at the top of the snippet.</p>
+        <div style="display:flex;gap:10px;margin-bottom:10px"><button class="btn sm" id="copy">Copy</button></div>
+        <pre class="code" id="snip">Loading…</pre></details>` : ""}
+      <div class="foot"><button class="btn" id="back">Back</button>
+        <button class="btn go" id="restartNow">Start ScamStop</button></div>`;
+    if (isSip()) {
+      api("snippet?type=" + t).then(r => $("#snip").textContent = r.text);
+      $("#copy").onclick = () => { navigator.clipboard.writeText($("#snip").textContent); toast("Copied."); };
+    }
+    $("#restartNow").onclick = async () => { const r = await api("restart", {method: "POST"}); toast(r.message); if (r.ok) { $("#restartBanner").classList.remove("show"); setTimeout(() => go("dash"), 1200); } };
+  }
+  $$("[data-test]").forEach(tb => tb.onclick = async () => {
+    read(); const w = tb.dataset.test, out = $("#res-" + w);
+    out.className = "res"; out.textContent = "Testing…";
+    const r = await api("test/" + w, {method: "POST", body: draft});
+    out.className = "res " + (r.ok ? "ok" : "bad"); out.textContent = (r.ok ? "✓ " : "✕ ") + r.message;
+  });
+  const back = $("#back"); if (back) back.onclick = () => { read(); STEP--; renderStep(); };
+  const next = $("#next"); if (next) next.onclick = async () => {
+    read();
+    if (STEP === 3) {
+      await save({platform: draft.platform, asterisk: draft.asterisk, freeswitch: draft.freeswitch, warn: draft.warn,
+                  dry_run: draft.dry_run, proxy: draft.proxy, rtpengine: draft.rtpengine, redis: draft.redis,
+                  monitor: draft.monitor, centers: draft.centers, evidence: draft.evidence});
+      toast("Setup saved.");
+    }
+    STEP++; renderStep();
+  };
+}
+
+async function loadWarning() {
+  const a = $("#warnAudio"); if (!a) return;
+  try { const r = await fetch("/api/warning", {headers: {"Authorization": "Bearer " + TOKEN}});
+    if (r.ok) { if (a.src) URL.revokeObjectURL(a.src); a.src = URL.createObjectURL(await r.blob()); } } catch (e) {}
+}
+function read() {
+  const v = id => { const e = $("#" + id); return e ? e.value.trim() : null; };
+  if (STEP === 1) {
+    if (v("fifo") !== null) { draft.proxy.fifo = v("fifo"); draft.proxy.url = null; }
+    if (v("url") !== null) draft.proxy.url = v("url");
+    if (v("aUrl") !== null) Object.assign(draft.asterisk, {url: v("aUrl"), user: v("aUser"), password: v("aPw"), external_regex: v("aRx")});
+    if (v("fHost") !== null) Object.assign(draft.freeswitch, {host: v("fHost"), port: parseInt(v("fPort")) || 8021, password: v("fPw"), external_regex: v("fRx")});
+    if (v("rh") !== null) { draft.rtpengine.host = v("rh"); draft.rtpengine.port = parseInt(v("rp")) || 22222; }
+  }
+  if (STEP === 2) {
+    draft.redis.url = v("ru"); draft.monitor.listen_victim = $("#lv").checked;
+    if (v("ex") !== null) draft.monitor.exclude_ips = v("ex").split(",").map(s => s.trim()).filter(Boolean);
+  }
+  if (STEP === 3) {
+    draft.dry_run = $("#dry").checked; if ($("#ncb")) draft.centers.never_block_customer_ip = $("#ncb").checked;
+    draft.centers.strikes_to_block = +v("stk"); draft.centers.block_ttl_s = +v("ttl"); draft.evidence.transcript = v("tx");
+  }
+}
+
+// ---------------- system check ----------------
+async function loadCheck(force) {
+  $("#checkList").innerHTML = `<div class="empty">Checking this server…</div>`;
+  const det = await runDetect(force), d = det.detect || {};
+  const ICON = {ok: ["p-green", "✓"], warn: ["p-amber", "!"], fail: ["p-red", "✕"]};
+  $("#checkSummary").innerHTML = d.platform ? `Found <b>${esc(d.label)}</b> on this server, ${d.cores} CPU cores.` : "No phone system found on this server.";
+  $("#checkList").innerHTML = det.checks.map(c => `<div class="rule"><span class="pill ${ICON[c.status][0]}" style="width:28px;justify-content:center">${ICON[c.status][1]}</span>
+    <div class="t"><b>${esc(c.label)}</b>${c.detail ? `<small style="white-space:normal">${esc(c.detail)}</small>` : ""}${c.fix ? `<small style="white-space:normal;color:var(--text);margin-top:4px">Fix: ${esc(c.fix)}</small>` : ""}</div>
+    ${c.action ? `<button class="btn sm pri" data-fix="${esc(c.action)}">${c.action === "fix_ari" ? "Set up ARI for me" : c.action === "download_model" ? "Download now" : "Fix"}</button>` : ""}</div>`).join("");
+  $$("[data-fix]").forEach(bt => bt.onclick = async () => {
+    bt.disabled = true;
+    try { const r = await api("syscheck/fix", {method: "POST", body: {action: bt.dataset.fix}}); toast(r.message); CFG = (await api("config")).config; draft = null; }
+    catch (e) { toast(e.message); }
+    loadCheck(true);
+  });
+}
+document.addEventListener("click", e => { if (e.target && e.target.id === "recheck") loadCheck(true); });
+
+// ---------------- rules ----------------
+const CAT = {impersonation: "Impersonation", tech_support: "Tech support", payment_method: "Payment demands", coaching: "Coaching the victim",
+  government_impersonation: "Government threats", pretext: "Pretexts", advance_fee: "Prizes and grants", family_emergency: "Family emergency",
+  victim_says: "What the person being called says"};
+async function loadSmart() {
+  const st = await api("smart"), c = st.config, need = st.need;
+  const pct = st.precision == null ? "–" : Math.round(st.precision * 100) + "%";
+  const prog = Math.min(100, st.reviewed / need.min_reviewed * 100);
+  const mode = !c.enabled ? "off" : c.mode;
+  $("#smartCard").innerHTML = `
+    <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
+      <div style="flex:1;min-width:260px"><h2 style="margin-bottom:4px">Smart check</h2>
+        <p style="color:var(--muted);margin:0">A model on your own server reads the last 30 seconds of every call and scores it for scam intent. It catches reworded scripts that no phrase rule matches.</p></div>
+      <div class="seg" id="smMode">${[["off", "Off"], ["flag", "Flag"], ["kill", "Hang up"]].map(([k, l]) => `<button class="${k} ${mode === k ? "on" : ""}" data-m="${k}" ${k === "kill" && !st.proven ? 'title="Review more flags first"' : ""}>${l}${k === "kill" && !st.proven ? " 🔒" : ""}</button>`).join("")}</div>
+    </div>
+    <div class="grid g4" style="margin-top:18px">
+      <div class="stat"><div class="l">Flags so far</div><div class="n" style="font-size:24px">${st.flags}</div></div>
+      <div class="stat"><div class="l">You reviewed</div><div class="n" style="font-size:24px">${st.reviewed}</div></div>
+      <div class="stat"><div class="l">Correct</div><div class="n" style="font-size:24px">${pct}</div></div>
+      <div class="stat"><div class="l">Flag when score is at least</div>
+        <select id="smThr" style="margin-top:8px">${[0.75, 0.8, 0.85, 0.9, 0.95].map(t => `<option ${c.threshold == t ? "selected" : ""}>${t}</option>`).join("")}</select></div>
+    </div>
+    <div style="margin-top:16px">${st.proven ? `<span class="pill p-green"><i></i>Proven on your calls. It can hang up.</span>`
+      : `<div style="display:flex;justify-content:space-between;color:var(--muted);font-size:13px;margin-bottom:6px"><span>Hang up unlocks after ${need.min_reviewed} reviewed flags at ${Math.round(need.min_precision * 100)}%+ correct. Review flags in the dashboard feed.</span><span>${st.reviewed}/${need.min_reviewed}</span></div><div class="meter"><i style="width:${prog}%"></i></div>`}</div>
+    <details style="margin-top:18px"><summary style="cursor:pointer;font-weight:600">Second opinion from a local AI model (optional)</summary>
+      <p style="color:var(--muted)">Calls the smart check finds suspicious get a second read from an AI model you run yourself, such as Ollama or a llama.cpp server. Nothing leaves your network.</p>
+      <div class="toggle"><div><b>Ask the AI model</b><small>Only suspicious calls are sent, so a small model on a CPU can keep up.</small></div><label class="sw"><input type="checkbox" id="llmOn" ${c.llm.enabled ? "checked" : ""}><span></span></label></div>
+      <div class="row"><label class="f" style="flex:2"><span>Endpoint (OpenAI-compatible)</span><input id="llmUrl" type="text" value="${esc(c.llm.url)}"></label>
+        <label class="f"><span>Model</span><input id="llmModel" type="text" value="${esc(c.llm.model)}"></label></div>
+      <div class="test"><button class="btn sm" id="llmTest">Test model</button><span class="res" id="llmRes"></span><button class="btn sm pri" id="llmSave" style="margin-left:auto">Save</button></div>
+    </details>`;
+  $$("#smMode button").forEach(b => b.onclick = async () => {
+    const m = b.dataset.m;
+    try { await api("smart", {method: "POST", body: m === "off" ? {enabled: false} : {enabled: true, mode: m}}); toast("Applied."); loadSmart(); }
+    catch (e) { toast(e.message); }
+  });
+  $("#smThr").onchange = async () => { await api("smart", {method: "POST", body: {threshold: +$("#smThr").value}}); toast("Applied."); };
+  const llmBody = () => ({enabled: $("#llmOn").checked, url: $("#llmUrl").value.trim(), model: $("#llmModel").value.trim()});
+  $("#llmTest").onclick = async () => { $("#llmRes").className = "res"; $("#llmRes").textContent = "Asking the model…";
+    const r = await api("smart/test-llm", {method: "POST", body: llmBody()}); $("#llmRes").className = "res " + (r.ok ? "ok" : "bad"); $("#llmRes").textContent = (r.ok ? "✓ " : "✕ ") + r.message; };
+  $("#llmSave").onclick = async () => { await api("smart", {method: "POST", body: {llm: llmBody()}}); toast("Saved and applied."); };
+}
+async function loadRules() {
+  loadSmart();
+  const rules = await api("rules"), groups = {};
+  rules.forEach(r => (groups[r.category] = groups[r.category] || []).push(r));
+  $("#rulesList").innerHTML = Object.entries(groups).map(([c, rs]) => `<div class="cat">${esc(CAT[c] || c)}</div>` + rs.map(r => `
+    <div class="rule"><div class="t"><b>${esc(r.name)}</b><small>e.g. “${esc(r.example)}”</small></div>
+    <div class="seg" data-id="${esc(r.id)}">${["off", "flag", "kill"].map(s => `<button class="${s} ${r.state === s ? "on" : ""}" data-s="${s}">${{off: "Off", flag: "Flag", kill: "Hang up"}[s]}</button>`).join("")}</div></div>`).join("")).join("");
+  $$("#rulesList .seg").forEach(seg => seg.querySelectorAll("button").forEach(btn => btn.onclick = async () => {
+    await api("rules", {method: "POST", body: {id: seg.dataset.id, state: btn.dataset.s}});
+    seg.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === btn)); toast("Applied.");
+  }));
+}
+$("#scanBtn").onclick = async () => {
+  const r = await api("scan", {method: "POST", body: {text: $("#scanText").value}});
+  $("#scanOut").innerHTML = r.hits.length ? r.hits.map(h => `<div class="hit">${h.action === "kill" ? `<span class="pill p-red"><i></i>Would hang up</span>` : `<span class="pill p-amber"><i></i>Would flag</span>`}
+    <b>${esc(h.name)}</b><span style="color:var(--muted)">heard “${esc(h.matched)}”</span></div>`).join("")
+    : `<div class="hit"><span class="pill p-green"><i></i>Clean</span><span style="color:var(--muted)">No scam rule matched.</span></div>`;
+};
+
+// ---------------- blocks ----------------
+const KIND = {media: "Call center · media IP", host: "Call center · Call-ID IP", tag: "Hosted dialer account", cli: "Spoofed caller ID", dnc: "Never call", src: "Entire source IP"};
+const PH = {media: "203.0.113.7", host: "203.0.113.7", tag: "CNX33890", cli: "8004321000", dnc: "2025550123", src: "203.0.113.7"};
+$("#bKind").onchange = () => $("#bVal").placeholder = PH[$("#bKind").value];
+async function loadBlocks() {
+  const b = await api("blocks"), rows = [];
+  Object.entries(b).forEach(([k, list]) => list.forEach(x => rows.push({k, ...x})));
+  $("#blockList").innerHTML = rows.length ? `<table><thead><tr><th>Type</th><th>Value</th><th>Reason</th><th>Expires</th><th></th></tr></thead><tbody>${rows.map(r => `
+    <tr><td>${esc(KIND[r.k])}</td><td class="mono">${esc(r.value)}</td><td style="color:var(--muted)">${r.reason.startsWith("feed:") ? `<span class="pill p-blue" style="margin-right:6px">Shared feed</span>${esc(r.reason.slice(5))}` : esc(r.reason)}</td>
+    <td>${r.expires ? new Date(r.expires * 1000).toLocaleString() : `<span class="pill p-gray">Never</span>`}</td>
+    <td style="text-align:right"><button class="btn sm danger" data-k="${esc(r.k)}" data-v="${esc(r.value)}">Unblock</button></td></tr>`).join("")}</tbody></table>`
+    : `<div class="empty">Nothing is blocked.</div>`;
+  $$("#blockList [data-k]").forEach(x => x.onclick = async () => {
+    await api(`blocks?kind=${encodeURIComponent(x.dataset.k)}&value=${encodeURIComponent(x.dataset.v)}`, {method: "DELETE"}); toast("Unblocked."); loadBlocks();
+  });
+}
+$("#bAdd").onclick = async () => {
+  try { await api("blocks", {method: "POST", body: {kind: $("#bKind").value, value: $("#bVal").value.trim(), ttl: +$("#bTtl").value, reason: $("#bWhy").value}});
+    $("#bVal").value = $("#bWhy").value = ""; toast("Blocked. Takes effect on the next call."); loadBlocks(); }
+  catch (e) { toast(e.message); }
+};
+
+// ---------------- feed ----------------
+async function loadFeed() {
+  const f = await api("feed"), c = f.config, st = f.state || {}, ls = st.last_sync || {};
+  $("#fActive").textContent = f.active;
+  $("#fRecv").textContent = ls.received ?? "–";
+  $("#fShared").textContent = ls.shared ?? "–";
+  $("#fLast").textContent = ls.ts ? ago(ls.ts) : "never";
+  const K = {media: "Call centers (media IP)", host: "Call centers (Call-ID IP)", tag: "Hosted dialer accounts", cli: "Spoofed caller IDs"};
+  $("#feedForm").innerHTML = `
+    <div class="toggle"><div><b>Use the shared feed</b><small>Shares only the blocked IP, tag or caller ID and the rule that caught it. Never transcripts, called numbers or customer data.</small></div>
+      <label class="sw"><input type="checkbox" id="fOn" ${c.enabled ? "checked" : ""}><span></span></label></div>
+    <div class="row"><label class="f" style="flex:2"><span>Feed address</span><input id="fUrl" type="text" value="${esc(c.url || "")}" placeholder="https://feed.example.org"></label>
+      <label class="f"><span>Your network's name <small style="display:inline">(optional)</small></span><input id="fName" type="text" value="${esc(c.name || "")}" placeholder="Acme Telecom"></label></div>
+    <div class="toggle"><div><b>Share what I block</b><small>Your automatic blocks, plus manual ones if the next switch is on.</small></div><label class="sw"><input type="checkbox" id="fShare" ${c.share ? "checked" : ""}><span></span></label></div>
+    <div class="toggle"><div><b>Include manual blocks</b><small>Caller IDs and centers you added by hand on the Blocked page.</small></div><label class="sw"><input type="checkbox" id="fMan" ${c.share_manual ? "checked" : ""}><span></span></label></div>
+    <div class="toggle"><div><b>Block what others caught</b><small>Feed blocks expire on their own and never override your blocks or touch your customers' IPs.</small></div><label class="sw"><input type="checkbox" id="fApply" ${c.apply ? "checked" : ""}><span></span></label></div>
+    <label class="f"><span>Apply these from the feed</span></label>
+    <div class="choice" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr))">${Object.entries(K).map(([k, l]) => `<div class="opt ${c.apply_kinds.includes(k) ? "on" : ""}" data-fk="${k}"><b>${l}</b></div>`).join("")}</div>
+    ${st.install_id ? `<p style="color:var(--dim);font-size:12px;margin:0">Install ID <span class="mono">${esc(st.install_id)}</span></p>` : ""}
+    ${st.last_error ? `<p class="res bad">Last sync failed: ${esc(st.last_error.message)}</p>` : ""}
+    <div class="foot"><button class="btn" id="fSync" ${c.url ? "" : "disabled"}>Sync now</button><button class="btn pri" id="fSave">Save</button></div>`;
+  $$("[data-fk]").forEach(o => o.onclick = () => o.classList.toggle("on"));
+  $("#fSave").onclick = async () => {
+    await save({feed: {enabled: $("#fOn").checked, url: $("#fUrl").value.trim() || null, name: $("#fName").value.trim(),
+      share: $("#fShare").checked, share_manual: $("#fMan").checked, apply: $("#fApply").checked,
+      apply_kinds: $$("[data-fk].on").map(o => o.dataset.fk)}});
+    loadFeed();
+  };
+  $("#fSync").onclick = async () => {
+    $("#fSync").disabled = true; $("#fSync").textContent = "Syncing…";
+    const r = await api("feed/sync", {method: "POST"});
+    toast(r.ok ? `Synced: +${r.result.added ?? 0} blocked, ${r.result.shared ?? 0} shared.` : "Sync failed: " + (r.error && r.error.message));
+    loadFeed();
+  };
+}
+
+// ---------------- hosted: companies (admin) ----------------
+async function refreshPending() {
+  try { const r = await api("tenants"); const n = r.tenants.filter(t => t.status === "pending").length;
+    const b = $("#pendingBadge"); b.hidden = !n; b.textContent = n; } catch (e) {}
+}
+async function loadCompanies() {
+  const r = await api("tenants"), h = CFG.hosted, c = r.connect;
+  $("#hostedCard").innerHTML = `<h2>Hosted service</h2>
+    <div class="row"><label class="f" style="flex:1.4"><span>SBC address customers send calls to</span><input id="hSbc" type="text" value="${esc(h.sbc_address)}" placeholder="sbc.yourcompany.com or its public IP"></label>
+      <label class="f" style="flex:.5"><span>Port</span><input id="hPort" type="number" value="${esc(h.sbc_port)}"></label>
+      <label class="f" style="flex:1.4"><span>Your termination (optional)</span><input id="hDef" type="text" value="${esc(h.default_carrier)}" placeholder="carrier IP:port offered to customers"></label>
+      <label class="f"><span>Shown to customers as</span><input id="hDefL" type="text" value="${esc(h.default_carrier_label)}"></label></div>
+    <div class="row"><label class="f"><span>Brand name</span><input id="hBrand" type="text" value="${esc(h.brand)}"></label>
+      <label class="f"><span>Support email</span><input id="hSup" type="text" value="${esc(h.support_email)}"></label></div>
+    <div class="toggle"><div><b>Anyone can create an account</b><small>Turn off to stop new sign-ups.</small></div><label class="sw"><input type="checkbox" id="hOpen" ${h.signup_open ? "checked" : ""}><span></span></label></div>
+    <div class="toggle"><div><b>Approve new accounts automatically</b><small>Not recommended: unapproved accounts can't send traffic through your IPs.</small></div><label class="sw"><input type="checkbox" id="hAuto" ${h.auto_approve ? "checked" : ""}><span></span></label></div>
+    <div style="display:flex;justify-content:flex-end"><button class="btn pri" id="hSave">Save</button></div>`;
+  $("#hSave").onclick = async () => {
+    await save({hosted: {sbc_address: $("#hSbc").value.trim(), sbc_port: +$("#hPort").value || 5060, default_carrier: $("#hDef").value.trim(),
+      default_carrier_label: $("#hDefL").value.trim(), brand: $("#hBrand").value.trim() || "ScamStop", support_email: $("#hSup").value.trim(),
+      signup_open: $("#hOpen").checked, auto_approve: $("#hAuto").checked}}, true);
+    toast("Saved."); setBrand($("#hBrand").value.trim() || "ScamStop"); loadCompanies();
+  };
+  const P = {pending: "p-amber", active: "p-green", suspended: "p-red"};
+  $("#companyList").innerHTML = r.tenants.length ? `<table><thead><tr><th>Company</th><th>Status</th><th>Sends from</th><th>Calls go to</th><th>Mode</th><th>Last call</th><th></th></tr></thead><tbody>${r.tenants.map(t => `
+    <tr><td><b>${esc(t.name)}</b><div style="color:var(--dim);font-size:12px">${esc(t.email)}</div></td>
+    <td><span class="pill ${P[t.status]}"><i></i>${esc(t.status)}</span></td>
+    <td class="mono">${t.ips.map(esc).join("<br>") || `<span style="color:var(--dim)">none yet</span>`}</td>
+    <td class="mono">${esc(t.route || "not set")}${t.carrier_mode === "default" ? ` <span class="pill p-gray">yours</span>` : ""}</td>
+    <td>${t.dry_run ? "Watch-only" : "Protecting"}</td>
+    <td>${t.last_call ? ago(+t.last_call) : "–"}</td>
+    <td style="text-align:right;white-space:nowrap">${t.status !== "active" ? `<button class="btn sm pri" data-st="active" data-id="${t.id}">Approve</button>` : `<button class="btn sm" data-st="suspended" data-id="${t.id}">Suspend</button>`}
+      <button class="btn sm danger" data-del="${t.id}">Delete</button></td></tr>`).join("")}</tbody></table>`
+    : `<div class="empty">No companies yet. Share your portal address; companies sign up there.</div>`;
+  $$("[data-st]").forEach(b => b.onclick = async () => { await api("tenants/" + b.dataset.id, {method: "POST", body: {status: b.dataset.st}}); toast(b.dataset.st === "active" ? "Approved. Their calls are accepted now." : "Suspended."); loadCompanies(); refreshPending(); });
+  $$("[data-del]").forEach(b => b.onclick = async () => { if (!confirm("Delete this company? Their calls will be rejected.")) return; await api("tenants/" + b.dataset.del, {method: "DELETE"}); loadCompanies(); refreshPending(); });
+}
+
+// ---------------- hosted: connect + protection (company) ----------------
+async function loadConnect(quiet) {
+  ME = await api("me");
+  const t = ME.tenant, c = ME.connect;
+  if (quiet && document.activeElement && document.activeElement.closest && document.activeElement.closest("#connectBody")) return;
+  const step = (n, done, title, body) => `<div class="card" style="margin-bottom:14px"><div style="display:flex;gap:14px">
+    <span class="step ${done ? "done" : "on"}" style="flex:none;padding:0;border:0;background:none"><span class="d">${done ? "✓" : n}</span></span>
+    <div style="flex:1"><h2 style="margin:2px 0 10px">${title}</h2>${body}</div></div></div>`;
+  const sbc = `${c.sbc_address || "(your provider will give you this address)"}${c.sbc_port && c.sbc_port != 5060 ? ":" + c.sbc_port : ""}`;
+  $("#connectBody").innerHTML =
+    step(1, t.ips.length > 0, "The IPs you send calls from", `
+      <p style="color:var(--muted);margin:0 0 12px">The public IP address of your dialer or phone system. We only accept calls from these.</p>
+      ${t.ips.map(ip => `<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><span class="mono">${esc(ip)}</span><button class="btn sm danger" data-rmip="${esc(ip)}">Remove</button></div>`).join("")}
+      <div class="row" style="margin-top:8px"><label class="f" style="margin:0"><input id="newIp" type="text" placeholder="e.g. 198.51.100.10"></label><label class="f" style="flex:none;margin:0"><button class="btn pri" id="addIp">Add IP</button></label></div>`) +
+    step(2, !!t.route, "Where calls go after we check them", `
+      <div class="choice">${c.default_available ? `<div class="opt ${t.carrier_mode === "default" ? "on" : ""}" data-cm="default"><b>${esc(c.default_label)}</b><small>We pass your calls on to our termination.</small></div>` : ""}
+        <div class="opt ${t.carrier_mode === "own" ? "on" : ""}" data-cm="own"><b>My own carrier</b><small>We pass your calls on to the carrier you use today.</small></div></div>
+      <div id="ownCarrier" class="${t.carrier_mode === "own" ? "" : "hidden"}">
+        <div class="row"><label class="f" style="margin:0"><span>Your carrier's SIP address</span><input id="carrier" type="text" value="${esc(t.carrier)}" placeholder="e.g. 64.34.1.2 or sip.mycarrier.com:5060"></label>
+          <label class="f" style="flex:none;margin:0"><button class="btn pri" id="saveCarrier">Save</button></label></div>
+        <p style="color:var(--muted);margin:10px 0 0">Ask your carrier to accept calls from <b class="mono">${esc(c.sbc_address || "our SBC")}</b>, the same way they accept calls from you today.</p></div>`) +
+    step(3, !!t.last_call, "Point your dialer at us", `
+      <p style="color:var(--muted);margin:0 0 12px">Where your dialer or phone system sends calls to your carrier today, put our SBC instead. Keep everything else the same.</p>
+      <div class="toggle" style="margin-bottom:12px"><div><b class="mono" style="font-size:16px">${esc(sbc)}</b><small>${esc(c.sbc_transport)} · IP authentication (no username or password)</small></div><button class="btn sm" id="copySbc">Copy</button></div>
+      <details><summary style="cursor:pointer;font-weight:600">ViciDial</summary><p style="color:var(--muted)">Admin → Carriers → your carrier. In <b>Account Entry</b>, change <span class="mono">host=</span> to <span class="mono">${esc(c.sbc_address || "our SBC address")}</span>. Leave the dialplan entry as it is. Submit, then make a test call.</p></details>
+      <details><summary style="cursor:pointer;font-weight:600">FreePBX / Asterisk</summary><p style="color:var(--muted)">Connectivity → Trunks → your outbound trunk. Set the SIP server (or <span class="mono">host=</span>) to <span class="mono">${esc(c.sbc_address || "our SBC address")}</span>. Submit and apply config.</p></details>
+      <details><summary style="cursor:pointer;font-weight:600">Any other dialer or switch</summary><p style="color:var(--muted)">Change the outbound carrier / gateway / trunk host to <span class="mono">${esc(sbc)}</span>. Use IP authentication from the IPs in step 1.</p></details>
+      <p style="margin:12px 0 0">${t.last_call ? `<span class="pill p-green"><i></i>Calls are coming through. Last one ${ago(+t.last_call)}.</span>` : `<span class="pill p-gray"><i></i>Waiting for your first call…</span>`}</p>`) +
+    step(4, t.status === "active", "Approval", t.status === "active" ? `<span class="pill p-green"><i></i>Approved. We accept your calls.</span>`
+      : t.status === "pending" ? `<span class="pill p-amber"><i></i>Waiting for approval</span><p style="color:var(--muted)">We review each new account before accepting its traffic${c.support_email ? `. Questions? <a href="mailto:${esc(c.support_email)}">${esc(c.support_email)}</a>` : ""}.</p>`
+      : `<span class="pill p-red"><i></i>Suspended</span>`);
+  const addIp = $("#addIp"); addIp.onclick = async () => { try { await api("me/ips", {method: "POST", body: {ip: $("#newIp").value.trim()}}); toast("Added."); loadConnect(); } catch (e) { toast(e.message); } };
+  $$("[data-rmip]").forEach(b => b.onclick = async () => { await api("me/ips?ip=" + encodeURIComponent(b.dataset.rmip), {method: "DELETE"}); loadConnect(); });
+  $$("[data-cm]").forEach(o => o.onclick = async () => {
+    if (o.dataset.cm === "own") { $$("[data-cm]").forEach(x => x.classList.toggle("on", x === o)); $("#ownCarrier").classList.remove("hidden"); return; }
+    await api("me", {method: "POST", body: {carrier_mode: "default"}}); toast("Calls will go to " + c.default_label + "."); loadConnect();
+  });
+  const sc = $("#saveCarrier"); if (sc) sc.onclick = async () => { try { await api("me", {method: "POST", body: {carrier_mode: "own", carrier: $("#carrier").value.trim()}}); toast("Saved."); loadConnect(); } catch (e) { toast(e.message); } };
+  $("#copySbc").onclick = () => { navigator.clipboard.writeText(sbc); toast("Copied."); };
+}
+
+async function loadTenantSettings() {
+  ME = await api("me");
+  const t = ME.tenant, wm = t.warn_mode;
+  $("#tenantSettings").innerHTML = `
+    <div class="toggle"><div><b>Watch-only mode</b><small>See what would be stopped without hanging up anything. Good for your first few days.</small></div>
+      <label class="sw"><input type="checkbox" id="tDry" ${t.dry_run ? "checked" : ""}><span></span></label></div>
+    <h2 style="margin-top:20px">When we hear a scam</h2>
+    <div class="choice">
+      <div class="opt ${wm === "warn_then_hangup" ? "on" : ""}" data-twm="warn_then_hangup"><b>Warn the person, then hang up</b><small>Recommended. The person hears a short warning, then the call ends.</small></div>
+      <div class="opt ${wm === "warn_only" ? "on" : ""}" data-twm="warn_only"><b>Warn only</b><small>The person hears the warning and the call continues.</small></div>
+      <div class="opt ${wm === "off" ? "on" : ""}" data-twm="off"><b>Hang up right away</b><small>No warning.</small></div></div>
+    <label class="f"><span>Company name</span><input id="tNameSet" type="text" value="${esc(t.name)}"></label>
+    <div style="display:flex;justify-content:flex-end"><button class="btn pri" id="tSave">Save</button></div>`;
+  let mode = wm;
+  $$("[data-twm]").forEach(o => o.onclick = () => { mode = o.dataset.twm; $$("[data-twm]").forEach(x => x.classList.toggle("on", x === o)); });
+  $("#tSave").onclick = async () => {
+    await api("me", {method: "POST", body: {dry_run: $("#tDry").checked, warn_mode: mode, name: $("#tNameSet").value.trim()}});
+    toast("Saved. Applies to your next calls."); loadTenantSettings();
+  };
+}
+
+// ---------------- customers ----------------
+async function loadCustomers() {
+  const c = await api("customers");
+  $("#custMode").innerHTML = c.mode === "all"
+    ? `<div class="toggle" style="margin:0"><div><b>Listening to every call</b><small>Switch to a customer list to choose exactly whose calls are checked.</small></div><button class="btn" id="toListed">Use a customer list</button></div>`
+    : `<h2>Add a customer</h2><div class="row"><label class="f"><span>Source IP</span><input id="cIp" type="text" placeholder="203.0.113.10"></label><label class="f" style="flex:none"><button class="btn pri" id="cAdd">Add</button></label></div>
+       <button class="btn sm" id="toAll">Listen to every call instead</button>`;
+  $("#custList").innerHTML = c.mode === "all" ? `<div class="empty">Every call is checked, except the IPs excluded in Setup.</div>`
+    : c.ips.length ? `<table><thead><tr><th>Source IP</th><th></th></tr></thead><tbody>${c.ips.map(ip => `<tr><td class="mono">${esc(ip)}</td><td style="text-align:right"><button class="btn sm danger" data-ip="${esc(ip)}">Remove</button></td></tr>`).join("")}</tbody></table>`
+    : `<div class="empty">No customers yet. Add the IPs your customers send SIP from.</div>`;
+  const tl = $("#toListed"); if (tl) tl.onclick = async () => { await save({redis: {customer_key: "sbc:cust:{ip}"}}); loadCustomers(); };
+  const ta = $("#toAll"); if (ta) ta.onclick = async () => { await save({redis: {customer_key: null}}); loadCustomers(); };
+  const ca = $("#cAdd"); if (ca) ca.onclick = async () => { try { await api("customers", {method: "POST", body: {ip: $("#cIp").value.trim()}}); toast("Added. Picked up within a minute."); loadCustomers(); } catch (e) { toast(e.message); } };
+  $$("#custList [data-ip]").forEach(x => x.onclick = async () => { await api("customers?ip=" + encodeURIComponent(x.dataset.ip), {method: "DELETE"}); loadCustomers(); });
+}
+
+(async () => {
+  try { PUB = await (await fetch("/api/public")).json(); } catch (e) {}
+  setBrand(PUB.brand || "ScamStop");
+  if (TOKEN) api("status").then(start).catch(showLogin); else showLogin();
+})();
+</script>
+</body>
+</html>

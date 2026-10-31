@@ -1,0 +1,147 @@
+# ScamStop configuration. Copy to /etc/scamstop/config.yaml.
+# Anything you leave out uses the default shown here.
+
+# Start in dry run. Hits are logged but nothing is hung up or blocked.
+# Read /var/log/scamstop/kills.jsonl for a week, then set false.
+dry_run: true
+
+redis:
+  url: redis://127.0.0.1:6379/0
+  prefix: "sbc:"                 # block lists live at <prefix>block:<kind>
+  # Which calls to listen to. A call is monitored if this key EXISTS for the
+  # caller's IP (e.g. SET sbc:cust:203.0.113.10 1). Set to null to monitor every call.
+  customer_key: "sbc:cust:{ip}"
+  customer_cache_s: 60           # re-check customers this often
+
+proxy:
+  type: opensips                 # opensips | kamailio
+  fifo: /run/opensips/opensips_fifo   # OpenSIPS mi_fifo path
+  reply_dir: /tmp                     # must match mi_fifo's reply_dir
+  # url: http://127.0.0.1:8888/mi     # or OpenSIPS mi_http
+  # Kamailio:  type: kamailio  url: http://127.0.0.1:5071/RPC
+
+rtpengine:
+  host: 127.0.0.1
+  port: 22222                    # rtpengine ng control port (needs rtpengine >= 11 for subscribe)
+
+monitor:
+  poll_s: 1.5
+  max_streams: 400               # concurrent calls listened to; about 70 per CPU core
+  exclude_ips: ["127.0.0.1"]     # e.g. your own AI voice agents
+  exclude_bind_suffix: []        # e.g. [":5080"] to skip calls arriving on a given socket
+  listen_victim: true            # also transcribe the called party (rule pack en_victim); about 2x CPU
+
+asr:
+  model_dir: /opt/scamstop/models/sherpa-onnx-streaming-zipformer-en-2023-06-21
+  workers: 6                     # one decoder thread per core you give it
+  quiet_rms: 120                 # chunks quieter than this are skipped (saves CPU)
+  queue_max: 5000
+
+rules:
+  packs: [en_scams, en_victim]   # built-in pack names, or paths to your own YAML packs
+  disabled: []                   # rule ids to turn off, e.g. [suspicious_charge]
+  actions: {}                    # per-rule override, e.g. {verify_account: kill, bail_scam: flag}
+  window: 400                    # characters of recent transcript each rule sees
+
+# Optional: hang up on anything outside the campaigns you allow on your network.
+# Off by default. This is a business rule, not fraud protection; see LEGAL.md.
+campaigns:
+  enabled: false
+  action: kill                   # or flag
+  grace_words: 25                # an off-list word is forgiven if an allowed word follows within this many words
+  review_min_words: 80           # long calls where no allowed word was heard go to review_log
+  allowed: ["medicare", "medicaid", "final expense", "burial", "life insurance", "health (plan|care|coverage)",
+            "affordable care", "obama ?care", "marketplace", "accident", "injur(y|ies|ed)", "attorney",
+            "hospital", "indemnity", "auto insurance", "car insurance"]
+  offlist: ["solar", "home warranty", "(car|auto|vehicle|extended) warranty", "debt (relief|consolidation|settlement)",
+            "student loans?", "tax (relief|debt)", "mortgage", "refinanc\\w*", "timeshare", "survey", "sweepstakes",
+            "credit repair", "roof(ing)?", "windows", "water (filter|softener)", "gold (ira|coins?)"]
+
+# What happens when a kill rule fires (not in dry run):
+#   warn_then_hangup  mute the caller, play the warning to the person being called, then hang up
+#   warn_only         play the warning and let the call continue
+#   off               hang up immediately
+# Playing audio needs rtpengine built with transcoding support. If the warning can't play,
+# ScamStop hangs up immediately instead.
+warn:
+  mode: warn_then_hangup
+  file: /var/lib/scamstop/warning.wav   # installed from the bundled recording if missing; must be readable by rtpengine
+  play_to: victim                       # victim | both (the scammer hears it too)
+  on_flag: false                        # also warn (never hang up) on flag-only rules
+  max_wait_s: 25                        # hang up at most this long after the warning starts
+
+centers:
+  # How to identify the call center behind a call, tried in order:
+  #   callid_host  IP after "@" in the Call-ID (many dialers put their own IP there)
+  #   media_ip     the RTP source address rtpengine sees for the caller (the real dialer box)
+  #   source_ip    the SIP source IP (usually your customer: blocking it blocks the whole customer)
+  strategies: [callid_host, media_ip]
+  media_ip_callid_regex: ".*"    # only use media_ip for matching Call-IDs, e.g. "^CNX\\d+_"
+  strikes_to_block: 2            # distinct killed calls before the center is blocked
+  strike_window_s: 86400         # strikes older than this are forgotten
+  block_ttl_s: 604800            # automatic blocks expire after 7 days (0 = never)
+  never_block_customer_ip: true  # if the center IS the customer's IP, hang up but don't block
+
+evidence:
+  kill_log: /var/log/scamstop/kills.jsonl
+  flag_log: /var/log/scamstop/flags.jsonl
+  review_log: /var/log/scamstop/review.jsonl
+  watch_log: /var/log/scamstop/watch.jsonl
+  transcript: full               # full | window (last 400 chars) | none
+  watch_regex: null              # Call-IDs matching this get their full transcript saved, killed or not
+
+# Smart check: a local model scores the last ~30 s of the caller side for scam intent.
+# Ships flag-only. "kill" is refused by the panel until it has been proven on your
+# calls (proven.min_reviewed flags reviewed in the dashboard, at proven.min_precision).
+smart:
+  enabled: true
+  mode: flag                     # flag | kill
+  threshold: 0.85                # flag at or above this score
+  kill_threshold: 0.97           # in kill mode, only hang up at or above this score
+  min_words: 25                  # don't score until this much has been said
+  every_words: 12                # re-score after this many new words
+  window_words: 75               # about 30 seconds of speech
+  model: null                    # null = bundled model; or a path from `scamstop smart-train`
+  labels_file: /var/lib/scamstop/labels.jsonl   # your Yes/Not-a-scam reviews from the dashboard
+  proven: {min_reviewed: 50, min_precision: 0.95}
+  llm:                           # optional second opinion from a local model (Ollama, llama.cpp, vLLM)
+    enabled: false
+    url: http://127.0.0.1:11434/v1/chat/completions
+    model: qwen2.5:3b-instruct
+    api_key: ""
+    ask_above: 0.6               # only calls the classifier scores at least this high are sent
+    min_confidence: 0.8          # the model must say scam with at least this confidence
+    timeout_s: 6
+    max_concurrent: 4
+
+# Hosted service: companies sign up in the portal and send calls through your SBC
+# (deploy/sbc/). Each company chooses its own watch-only and warning settings.
+hosted:
+  enabled: false
+  brand: ScamStop                 # shown on the portal
+  sbc_address: ""                 # what companies point their dialer at, e.g. sbc.yourcompany.com
+  sbc_port: 5060
+  sbc_transport: UDP
+  default_carrier: ""             # optional: your termination, host:port, offered to companies
+  default_carrier_label: Our termination
+  auto_approve: false             # keep false: unapproved accounts can't send traffic through your IPs
+  signup_open: true
+  support_email: ""
+
+# Shared threat feed. See README "Shared threat feed".
+feed:
+  enabled: false
+  url: null                      # the feed server's address, e.g. https://feed.example.org
+  name: ""                       # optional, shown to the feed operator
+  share: true                    # send the centers / caller IDs you block
+  share_manual: true             # include blocks you added by hand
+  apply: true                    # block what other networks caught
+  apply_kinds: [media, host, tag, cli]
+  min_reporters: 1               # extra local threshold on top of the feed's own
+  block_ttl_s: 259200            # feed blocks expire after 3 days unless the feed still lists them
+  sync_s: 300
+  never_apply: []                # values the feed must never block here
+  state_file: /var/lib/scamstop/feed.json
+
+metrics:
+  textfile: /var/lib/scamstop/metrics.prom   # the panel reads this; node_exporter can too

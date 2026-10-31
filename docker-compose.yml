@@ -1,0 +1,52 @@
+# docker compose up -d   then open https://<server>:8443 (password: docker compose logs panel)
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    network_mode: host
+    command: ["redis-server", "--bind", "127.0.0.1", "--port", "6379", "--save", "60", "1"]
+    volumes: [redis:/data]
+
+  scamstop:
+    build: .
+    image: scamstop
+    restart: unless-stopped
+    network_mode: host
+    depends_on: [redis]
+    volumes:
+      - ./etc:/etc/scamstop
+      - state:/var/lib/scamstop
+      - logs:/var/log/scamstop
+      - /run/opensips:/run/opensips               # OpenSIPS MI FIFO (remove if unused)
+      - /var/lib/asterisk/sounds:/var/lib/asterisk/sounds   # Asterisk warning sound (remove if unused)
+      - /dev/shm:/dev/shm                         # FreeSWITCH recordings in RAM
+      - /etc/opensips:/host/etc/opensips:ro       # read-only, for the system check
+      - /etc/kamailio:/host/etc/kamailio:ro
+      - /etc/asterisk:/host/etc/asterisk:ro
+      - /etc/freeswitch:/host/etc/freeswitch:ro
+      - /etc/rtpengine:/host/etc/rtpengine:ro
+    command: ["run"]
+
+  panel:
+    image: scamstop
+    restart: unless-stopped
+    network_mode: host
+    depends_on: [scamstop]
+    environment:
+      SCAMSTOP_ROOT: /host                        # the system check reads the host's configs from here
+    volumes:
+      - ./etc:/etc/scamstop
+      - state:/var/lib/scamstop
+      - logs:/var/log/scamstop
+      - /etc/opensips:/host/etc/opensips:ro
+      - /etc/kamailio:/host/etc/kamailio:ro
+      - /etc/asterisk:/host/etc/asterisk          # writable so "Set up ARI for me" works; then reload Asterisk
+      - /etc/freeswitch:/host/etc/freeswitch:ro
+      - /etc/rtpengine:/host/etc/rtpengine:ro
+      - /proc:/host/proc:ro
+    command: ["ui", "--host", "0.0.0.0", "--port", "8443", "--tls", "auto"]
+
+volumes:
+  redis:
+  state:
+  logs:

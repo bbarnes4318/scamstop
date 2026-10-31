@@ -1,0 +1,60 @@
+1	ma'am i'm an agent with the treasury department there's an arrest order connected to your name and we need to settle it before the end of business today
+1	sir your identity was used to open fourteen bank accounts in el paso we need to protect what you have before the government seizes it
+1	listen carefully do not hang up because this line is being recorded by the federal court
+1	hello this is a courtesy call from your computer support provider we noticed your machine is infected and we need to get remote control to clean it
+1	go ahead and open the browser and type in the address i'm spelling for you then click the green download button
+1	we see your system was hacked last night by someone overseas they could see your banking passwords
+1	this is security at your credit union a large transfer is pending and to stop it you need to move your savings into a protected account
+1	when you get to the teller just tell them you are buying a car do not mention me or this call
+1	go ahead and read me the six digit number that was just sent to your cell phone so i can confirm it's you
+1	grandpa it's your grandson i'm in a lot of trouble and i really need your help please don't call my parents
+1	i'm the attorney handling your granddaughter's case she was in a crash and we need the bond money paid in cash today
+1	someone from the court will stop by your house this afternoon to pick up the money in a sealed envelope
+1	you won our national drawing worth one point five million but there's a small transfer charge to release the funds
+1	your utilities account is past due and the crew will disconnect your electricity in forty five minutes unless we get a payment
+1	the only accepted method for this emergency payment is store cards from walmart or target
+1	pick up three cards worth five hundred each and then call me back from the parking lot
+1	we're going to send you instructions to the crypto kiosk near you insert the cash and scan the code on your screen
+1	there was an unauthorized purchase on your amazon profile of a laptop and if you want it canceled stay on the line
+1	we overpaid your refund by mistake you have to return the extra right away or your account gets locked
+1	medicare is mailing out new plastic cards and if you don't confirm your number today your coverage will lapse
+1	this is very confidential you can't talk to your family or your bank about this investigation
+1	you are not in trouble yet but if you hang up the police will be dispatched to your home address
+1	we can resolve this today if you cooperate but it must be in the form of prepaid vouchers
+1	i'm calling from the federal grants office you've been approved for nine thousand dollars free money you just need to cover the processing fee
+1	we can hear you're upset ma'am but this is the only way to keep your money safe so stay with me while you drive to the bank
+1	officer the customs department intercepted a box with your name containing cash and fake passports
+1	your social security benefits are going to be cut off because of suspicious transactions in your name
+1	the technician needs you to give him access so please accept the connection prompt on your screen
+1	please confirm your full card number and the security code on the back so we can stop the fraud
+1	hello is this the grandmother of michael yes this is sergeant davis michael was arrested last night
+0	hi this is jessica a licensed insurance agent i'm following up on the form you filled out about medicare advantage plans
+0	can you confirm your zip code and date of birth so i can see which plans are available near you
+0	this plan has a zero dollar premium and includes a grocery allowance on a card each month
+0	i'm calling about the final expense coverage you asked about it would help your family with funeral costs
+0	for the bank draft we just need your routing and account number and you pick the date
+0	do you have any major health issues like heart failure or kidney dialysis
+0	this is an automated message from your bank did you attempt a purchase of one hundred twelve dollars press one for yes or two for no
+0	we will never ask you for your password or pin please call the number on the back of your card with questions
+0	hi i'm calling from the law office were you hurt in a car accident that wasn't your fault
+0	our attorneys work on contingency so you pay nothing unless we win
+0	i'm calling to remind you about your dental cleaning on thursday at two thirty
+0	your prescription refill is ready at the pharmacy on main street
+0	this is a quick two minute survey about your recent stay at our hotel
+0	i'm calling about lowering your car insurance can you tell me the year and model of your vehicle
+0	we can start your new policy today with a first payment of eighty seven dollars on a debit card
+0	do you have health coverage right now through an employer or the marketplace
+0	your household income might qualify you for a big tax credit on the premium
+0	we have an inspector in your neighborhood offering free roof inspections after the storm
+0	hi this is the county library your reserved book is available for pickup
+0	i'm calling from the electric cooperative to let you know about scheduled maintenance tomorrow morning
+0	this is your doctor's office calling to go over your lab results please call us back
+0	we noticed you left items in your cart would you like help completing your order
+0	this is a courtesy call to let you know your vehicle is due for service
+0	i'm calling from the school district to remind parents about early dismissal on friday
+0	my name is david with the benefits line i can help you see if you qualify for extra help with prescription costs
+0	the hospital indemnity plan pays you a fixed amount for every day you stay in the hospital
+0	ok so i'll transfer you now to my supervisor who is a licensed agent and can finish the application
+0	can i get your social security number to run the eligibility check this information is protected
+0	your package from the pharmacy will be delivered tomorrow between nine and noon
+0	thank you for your time today if you have any questions you can call us back at this number

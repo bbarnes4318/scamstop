@@ -1,0 +1,113 @@
+# ScamStop rule pack: what VICTIMS say on scam calls (English).
+#
+# Matched only against the called party's audio (side: victim). Victims give scams
+# away even when the scammer's script is careful or their accent defeats the
+# speech model: they repeat instructions back ("you want me to buy gift cards?"),
+# narrate what they're doing ("I'm at the Bitcoin machine"), and read numbers aloud.
+#
+# Write these as things a called person says. Legit sales calls hear plenty of
+# "okay", "yes" and "my social security number is..." — never match those alone.
+
+pack: en_victim
+language: en
+version: 1
+side: victim
+
+rules:
+  - id: victim_gift_cards
+    name: Victim repeating a gift-card demand
+    category: victim_says
+    action: kill
+    patterns:
+      - '\b(you want|you need|you''re telling|you are telling|so) me to (go (and )?)?(buy|get|purchase|pick up|load)\b.{0,40}\bcards?\b'
+      - '\bhow many (gift |google play |itunes |apple |target |walmart )?cards\b'
+      - '\b(i''m|i am|i''m at|i am at) (at )?(the )?(walmart|target|cvs|walgreens|kroger|dollar general|best buy|store)\b.{0,60}\b(gift |google play |itunes |apple )?cards?\b'
+      - '\b(scratch|scratched) (off )?the (back|silver)\b'
+      - '\bthe (card|cards) (says|say|number is|numbers are)\b'
+    examples:
+      hit:
+        - "wait you want me to go buy google play cards"
+        - "how many cards do i need to get"
+        - "okay i'm at the walgreens now where are the cards"
+        - "i scratched the back and the card number is"
+      miss:
+        - "i have my medicare card right here"
+        - "do you take a debit card for the first payment"
+
+  - id: victim_crypto_atm
+    name: Victim at a Bitcoin / crypto ATM
+    category: victim_says
+    action: kill
+    patterns:
+      - '\b(i''m|i am) (at|in front of|standing at) (the |a )?(bitcoin|bit coin|crypto) (machine|atm|kiosk)\b'
+      - '\b(scan|scanned) the (qr|q r|code)\b.{0,60}\b(machine|bitcoin|crypto|cash)\b'
+      - '\b(put|putting|feed|feeding|insert) (the |my )?(cash|money|bills|hundreds) in(to)? the machine\b'
+    examples:
+      hit:
+        - "okay i'm at the bitcoin machine at the gas station"
+        - "it says scan the qr code and then put the cash in the machine"
+        - "i'm putting the money into the machine now"
+      miss:
+        - "the atm was out of order at my bank"
+
+  - id: victim_cash_withdrawal
+    name: Victim told to withdraw or send cash
+    category: victim_says
+    action: kill
+    patterns:
+      - '\b(you want|you need|you''re telling|so) me to (take out|withdraw|pull out|get) (all )?(the |my )?(cash|money|savings)\b'
+      - '\b(you want|you need|so) me to (wire|send|mail|overnight|transfer) (you )?(the )?(money|cash|it)\b'
+      - '\bwhat (should|do) i tell the (bank|teller)\b'
+      - '\byou said not to tell (the bank|anyone|my (son|daughter|husband|wife|family))\b'
+    examples:
+      hit:
+        - "so you want me to take out all my savings"
+        - "what should i tell the teller if she asks"
+        - "you said not to tell my daughter"
+      miss:
+        - "i can send you a copy of my bank statement"
+
+  - id: victim_remote_access
+    name: Victim installing remote access
+    category: victim_says
+    action: kill
+    patterns:
+      - '\b(it''s|it is) asking (me )?(to|for) (allow|give|grant) (access|control|permission)\b'
+      - '\b(i''m|i am) (downloading|installing) (the )?(any ?desk|team ?viewer|program|app) (you|that you) (said|told)\b'
+      - '\b(i see|i can see) (my|the) (mouse|cursor) moving\b'
+    examples:
+      hit:
+        - "it's asking me to allow access should i click yes"
+        - "i can see the mouse moving on its own"
+      miss:
+        - "can you give me access to the online portal later"
+
+  - id: victim_bail
+    name: Victim responding to a family-emergency / bail story
+    category: victim_says
+    action: kill
+    patterns:
+      - '\bhow much is (the |his |her |your )?(bail|bond)\b'
+      - '\b(which|what) jail (is he|is she|are you)\b'
+      - '\b(is he|is she|are you) (still )?in jail\b'
+      - '\b(you''re|you are) (his|her|the) (lawyer|attorney|public defender)\b.{0,60}\b(bail|bond|jail|court)\b'
+    examples:
+      hit:
+        - "oh my god how much is the bail"
+        - "which jail is he in"
+        - "is she still in jail"
+      miss:
+        - "my lawyer handles my estate planning"
+
+  - id: victim_card_digits
+    name: Victim reading out a long card-style number
+    category: victim_says
+    action: flag  # legit payments happen on sales calls too
+    patterns:
+      - '(?:\b(?:zero|oh|one|two|three|four|five|six|seven|eight|nine)\b[\s,]*){15,}'
+    examples:
+      hit:
+        - "four one two three five five five five six six six six seven seven seven seven"
+      miss:
+        - "my date of birth is one nine four six"
+        - "my zip code is three seven nine one nine"

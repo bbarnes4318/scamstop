@@ -1,0 +1,13 @@
+[Unit]
+Description=ScamStop shared threat feed server
+After=network-online.target
+
+[Service]
+ExecStart=/opt/scamstop/venv/bin/scamstop feed-server --db /var/lib/scamstop-feed/feed.db --host 127.0.0.1 --port 8095 --trust-proxy
+DynamicUser=yes
+StateDirectory=scamstop-feed
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

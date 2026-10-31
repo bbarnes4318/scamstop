@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<scenario name="dialer">
+  <send retrans="500"><![CDATA[
+INVITE sip:[service]@[remote_ip]:[remote_port] SIP/2.0
+Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+From: "Dialer" <sip:2025550111@[local_ip]:[local_port]>;tag=[pid]SIPpTag00[call_number]
+To: <sip:[service]@[remote_ip]:[remote_port]>
+Call-ID: [call_id]
+CSeq: 1 INVITE
+Contact: <sip:dialer@[local_ip]:[local_port]>
+Max-Forwards: 70
+Content-Type: application/sdp
+Content-Length: [len]
+
+v=0
+o=dialer 53655765 2353687637 IN IP[local_ip_type] [local_ip]
+s=-
+c=IN IP[media_ip_type] [media_ip]
+t=0 0
+m=audio [media_port] RTP/AVP 0 101
+a=rtpmap:0 PCMU/8000
+a=rtpmap:101 telephone-event/8000
+a=sendrecv
+]]></send>
+  <recv response="100" optional="true"/>
+  <recv response="180" optional="true"/>
+  <recv response="403" optional="true" next="rejected"/>
+  <recv response="200" rtd="true" rrs="true"/>
+  <send><![CDATA[
+ACK [next_url] SIP/2.0
+Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+From: "Dialer" <sip:2025550111@[local_ip]:[local_port]>;tag=[pid]SIPpTag00[call_number]
+To: <sip:[service]@[remote_ip]:[remote_port]>[peer_tag_param]
+Call-ID: [call_id]
+CSeq: 1 ACK
+[routes]
+Contact: <sip:dialer@[local_ip]:[local_port]>
+Max-Forwards: 70
+Content-Length: 0
+
+]]></send>
+  <nop><action><exec play_pcap_audio="AUDIO"/></action></nop>
+  <recv request="BYE" timeout="45000" ontimeout="hangup"/>
+  <send><![CDATA[
+SIP/2.0 200 OK
+[last_Via:]
+[last_From:]
+[last_To:]
+[last_Call-ID:]
+[last_CSeq:]
+Content-Length: 0
+
+]]></send>
+  <nop><action><log message="ENDED_BY_SBC"/></action></nop>
+  <nop next="done"/>
+  <label id="hangup"/>
+  <send retrans="500"><![CDATA[
+BYE [next_url] SIP/2.0
+Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+From: "Dialer" <sip:2025550111@[local_ip]:[local_port]>;tag=[pid]SIPpTag00[call_number]
+To: <sip:[service]@[remote_ip]:[remote_port]>[peer_tag_param]
+Call-ID: [call_id]
+CSeq: 2 BYE
+[routes]
+Max-Forwards: 70
+Content-Length: 0
+
+]]></send>
+  <recv response="200"/>
+  <nop><action><log message="ENDED_NORMALLY"/></action></nop>
+  <nop next="done"/>
+  <label id="rejected"/>
+  <send><![CDATA[
+ACK sip:[service]@[remote_ip]:[remote_port] SIP/2.0
+Via: SIP/2.0/[transport] [local_ip]:[local_port];branch=[branch]
+From: "Dialer" <sip:2025550111@[local_ip]:[local_port]>;tag=[pid]SIPpTag00[call_number]
+To: <sip:[service]@[remote_ip]:[remote_port]>[peer_tag_param]
+Call-ID: [call_id]
+CSeq: 1 ACK
+Content-Length: 0
+
+]]></send>
+  <nop><action><log message="REJECTED_403"/></action></nop>
+  <label id="done"/>
+</scenario>

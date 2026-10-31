@@ -1,0 +1,9 @@
+.git
+__pycache__
+*.egg-info
+build
+dist
+etc
+tests
+packaging/cache/python
+packaging/cache/pyinst
