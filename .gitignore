@@ -6,3 +6,4 @@ build/
 dist/
 etc/
 packaging/cache/
+dump.rdb

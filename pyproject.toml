@@ -23,3 +23,6 @@ packages = ["scamstop", "scamstop.platforms"]
 
 [tool.setuptools.package-data]
 scamstop = ["rules/*.yaml", "web/*.html", "snippets/*.cfg", "audio_files/*.wav", "models/*.npz"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
