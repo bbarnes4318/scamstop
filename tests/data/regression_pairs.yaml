@@ -1,0 +1,128 @@
+# Legitimate / scam regression pairs for the phrase rules (caller + victim packs, with
+# corroboration). Each pair shares a topic: the legitimate side must NOT be killed, the scam
+# side MUST be killed. Hand-written regression fixtures, not production accuracy evidence:
+# see docs/evaluation.md for how to measure on real, labeled calls.
+#
+# caller: what the dialer side says. victim: what the called party says (optional).
+
+pairs:
+  - id: grandma_birthday
+    topic: family
+    legit: {caller: "hi grandma happy birthday i hope you have a wonderful day we are coming over sunday"}
+    scam:  {caller: "hi grandma it's me your favorite grandson please don't tell mom and dad but i need help"}
+
+  - id: grandma_injury
+    topic: family
+    legit: {caller: "hi grandma i broke my nose playing basketball yesterday but i am fine mom took me to the doctor"}
+    scam:  {caller: "grandma it's me i was in a car accident and i broke my nose the public defender says i need money for bail"}
+
+  - id: public_defender_appointment
+    topic: legal
+    legit: {caller: "good afternoon i am a public defender calling to confirm your appointment tomorrow at nine at the courthouse annex"}
+    scam:  {caller: "hello this is the public defender your grandson was in a wreck he busted his lip and needs money for his bail today"}
+
+  - id: broke_nose_sports
+    topic: family
+    legit: {caller: "coach here just letting you know jake broke his nose playing basketball yesterday he is resting at home"}
+    # grandparent opener + injury alone is ambiguous (a real grandchild could say both): needs a third signal
+    scam:  {caller: "grandpa i know you don't recognize my voice i broke my nose in the wreck please don't tell mom"}
+
+  - id: wells_fargo_fraud_dept
+    topic: bank
+    legit: {caller: "this is the wells fargo fraud department we noticed an unusual charge please call the number printed on your card to review it"}
+    scam:  {caller: "this is the wells fargo fraud department we sent a verification code to your phone please read me the code so we can secure the account"}
+
+  - id: bank_safe_account
+    topic: bank
+    legit: {caller: "this is chase security team we will never ask you to move money we only want to confirm a recent card purchase"}
+    scam:  {caller: "this is chase security team your account is compromised we need to move your money to a safe account today"}
+
+  - id: medicare_replacement
+    topic: insurance
+    legit: {caller: "hi this is the plan office we are sending your new medicare card because you requested a replacement it should arrive in two weeks"}
+    scam:  {caller: "we are sending you a new medicare card with a chip there is a small processing fee you pay today to activate it"}
+
+  - id: medicare_suspended
+    topic: insurance
+    legit: {caller: "medicare will never call you to cancel your medicare number if anyone says your medicare card has been suspended hang up"}
+    scam:  {caller: "this is the benefits department your medicare card has been suspended due to suspicious activity"}
+
+  - id: booked_remote_support
+    topic: support
+    legit:
+      caller: "hi this is apple support calling back about the case you opened yesterday as scheduled i will send a screen sharing link if you want me to look at the settings"
+      victim: "yes i booked this call it's asking me to allow access should i click yes"
+    scam:
+      caller: "this is apple support your apple id was used in another state you need to install anydesk now"
+      victim: "okay i'm downloading the program you said"
+
+  - id: refund_support
+    topic: support
+    legit: {caller: "thanks for calling i'll process a refund to your card today it takes five business days to show up"}
+    scam:  {caller: "we will process a refund to your bank account please download teamviewer so i can process the refund"}
+
+  - id: gift_card_warning
+    topic: payment
+    legit: {caller: "a reminder from your bank we will never ask you to buy gift cards or send money to yourself"}
+    scam:  {caller: "you need to go get google play cards from the store and read me the numbers on the back of the card"}
+
+  - id: gift_card_negation_vs_dont_worry
+    topic: payment
+    legit: {caller: "please do not buy google play cards for anyone who calls you saying they are from the government"}
+    scam:  {caller: "don't worry just buy google play cards at the walgreens and call me back"}
+
+  - id: quoted_warrant
+    topic: legal
+    legit: {caller: "this is your county sheriff's office with a public notice if anyone says there is a warrant for your arrest and asks for gift cards it is a scam"}
+    scam:  {caller: "this is officer brown there is a warrant for your arrest you will be arrested today unless you cooperate"}
+
+  - id: legal_intake
+    topic: legal
+    legit: {caller: "if you were injured in an accident we can take legal action against the driver who hit you at no cost to you"}
+    scam:  {caller: "this is the legal department a lawsuit has been filed against you and legal action will be taken today"}
+
+  - id: tax_relief
+    topic: tax
+    legit: {caller: "if you owe the irs back taxes our firm can help you set up a payment plan we are not the irs"}
+    scam:  {caller: "this is the internal revenue service you owe four thousand dollars and a warrant has been issued"}
+
+  - id: victim_quotes_scammer
+    topic: family
+    legit:
+      caller: "hello this is your bank's fraud prevention line calling to check in"
+      victim: "yes last week my grandson said i got arrested and i need money that's how i knew it was a scam"
+    scam:
+      caller: "grandma it's me please don't tell mom"
+      victim: "oh my god how much is the bail"
+
+  - id: bail_bond_service
+    topic: legal
+    legit:
+      caller: "this is the county bail bonds office returning your call about your son"
+      victim: "how much is the bail and can i pay at the office"
+    scam:
+      caller: "this is the public defender your grandson is in custody and he begged me to keep this between us"
+      victim: "how much is the bail which jail is he in"
+
+  - id: card_payment
+    topic: payment
+    legit:
+      caller: "great you are approved for the plan i can take the first premium by card"
+      victim: "the card number is four one two three five five five five six six six six seven seven seven seven"
+    scam:
+      caller: "this is the social security administration your number was used for illegal activity"
+      victim: "okay"
+
+  - id: victim_gift_cards
+    topic: payment
+    legit:
+      caller: "can you confirm your mailing address"
+      victim: "i would never buy gift cards for someone on the phone my address is twelve oak street"
+    scam:
+      caller: "you have to go to the store now"
+      victim: "wait you want me to go buy google play cards"
+
+  - id: amazon_delivery_vs_order
+    topic: retail
+    legit: {caller: "i bought my blender on amazon last week and wanted to ask about the warranty"}
+    scam:  {caller: "an order of four hundred ninety nine dollars was placed if you did not authorize it press one"}

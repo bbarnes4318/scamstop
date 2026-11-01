@@ -3,6 +3,12 @@
 Feed blocks are stored like any other block, with reason "feed:<rules> x<reporters>".
 Each sync replaces the full set: anything the feed no longer publishes is removed
 here too. Local blocks always win and are never touched by the feed.
+
+Feed indicators are EXTERNAL evidence: their confidence is how many networks reported them
+(the "x<reporters>" in the reason, plus the feed's own reporter safeguards, expiry,
+withdrawal and allowlists). They act on individual calls only. They are never treated as
+locally confirmed customer identity, and a shared caller ID or IP never escalates or
+suspends a customer account (escalation.evidence_kind ignores every block-list match).
 """
 from __future__ import annotations
 

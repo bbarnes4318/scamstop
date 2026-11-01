@@ -4,6 +4,10 @@ A tenant signs up, adds the IPs its dialer/switch sends from and where calls sho
 go after checking (its own carrier, or your default termination). Nothing reaches
 the SBC until you approve the tenant.
 
+In carrier integration mode (carrier.enabled) the carrier's own portal owns the customer
+registry: this class then never writes or deletes sbc:cust:* / sbc:route:* / sbc:entry:*,
+and protection settings (dry_run, warn_mode) are locked to the carrier's mandatory policy.
+
 Redis layout (shared with the SBC config, which only reads two keys per call):
   sbc:cust:<ip>         -> tenant id   (the SBC accepts calls from this IP; active tenants only)
   sbc:route:<ip>        -> host:port   (where the SBC relays that tenant's calls)
@@ -21,6 +25,8 @@ import ipaddress
 import re
 import secrets
 import time
+
+from .policy import PolicyLocked
 
 STATUSES = ("pending", "active", "suspended")
 WARN_MODES = ("warn_then_hangup", "warn_only", "off")
@@ -61,8 +67,9 @@ def parse_carrier(s: str) -> str:
 
 
 class Tenants:
-    def __init__(self, store, hosted_cfg: dict):
+    def __init__(self, store, hosted_cfg: dict, carrier: bool = False, operator: str = "the carrier"):
         self.r, self.p, self.h = store.r, store.p, hosted_cfg
+        self.carrier, self.operator = carrier, operator
         self._cache: dict[str, tuple[float, dict | None]] = {}
 
     # keys ------------------------------------------------------------------------
@@ -87,9 +94,12 @@ class Tenants:
         if not self.r.set(f"ss:email:{email}", tid, nx=True):
             raise ValueError("an account with that email already exists")
         status = "active" if self.h.get("auto_approve") else "pending"
+        # standalone: watch-only until the company chooses otherwise (explicit advisory default,
+        # hosted.new_tenant_dry_run); carrier mode: the carrier's policy applies regardless
+        dry = "0" if self.carrier else ("1" if self.h.get("new_tenant_dry_run", True) else "0")
         self.r.hset(self._k(tid), mapping={
             "name": name, "email": email, "pw": hash_pw(password), "status": status, "created": int(time.time()),
-            "dry_run": "1", "warn_mode": "warn_then_hangup",
+            "dry_run": dry, "warn_mode": "warn_then_hangup",
             "carrier_mode": "default" if self.h.get("default_carrier") else "own", "carrier": ""})
         self.r.sadd("ss:tenants", tid)
         return self.get(tid)
@@ -120,6 +130,8 @@ class Tenants:
         t = self.get(tid)
         if not t:
             raise ValueError("no such company")
+        if self.carrier and ("dry_run" in f or "warn_mode" in f):
+            raise PolicyLocked(f"protection settings are set by {self.operator} and cannot be changed here")
         out = {}
         if "name" in f:
             out["name"] = str(f["name"]).strip()[:80] or t["name"]
@@ -182,12 +194,17 @@ class Tenants:
     def _unroute(self, ip: str, tid: str) -> None:
         if self.r.get(f"ss:ipowner:{ip}") == tid:
             self.r.delete(f"ss:ipowner:{ip}")
+        if self.carrier:
+            self._cache.pop(ip, None)
+            return  # the carrier's portal owns sbc:cust:* and sbc:route:*
         if self.r.get(f"{self.p}cust:{ip}") == tid:
             self.r.delete(f"{self.p}cust:{ip}", f"{self.p}route:{ip}")
         self._cache.pop(ip, None)
 
     def sync(self, tid: str) -> None:
         """Write (or remove) the two keys the SBC reads for each of the tenant's IPs."""
+        if self.carrier:
+            return  # never touch the carrier's registry
         t = self.get(tid)
         if not t:
             return
@@ -211,6 +228,8 @@ class Tenants:
         hit = self._cache.get(ip)
         if hit and now - hit[0] < ttl:
             return hit[1]
+        if self.carrier:
+            return None  # carrier records are "cid|entry|..." strings, and identity comes from the switch
         tid = self.r.get(f"{self.p}cust:{ip}") if ip else None
         t = self.get(tid) if tid else None
         self._cache[ip] = (now, t)

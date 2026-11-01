@@ -13,7 +13,7 @@ dependencies = ["pyyaml>=6", "numpy>=1.24,<2.3", "redis>=5"]
 
 [project.optional-dependencies]
 live = ["sherpa-onnx>=1.10"]
-test = ["pytest>=8", "fakeredis>=2.20"]
+test = ["pytest>=8", "fakeredis>=2.20", "lupa>=2"]
 
 [project.scripts]
 scamstop = "scamstop.cli:main"

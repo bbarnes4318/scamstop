@@ -103,10 +103,14 @@ def _fifo_jsonrpc(fifo: str, method: str, params=None, reply_dir: str = "/tmp", 
 class OpenSIPS:
     """OpenSIPS 3.x dialog module over mi_http (JSON-RPC) or the MI FIFO."""
 
-    def __init__(self, url: str | None = None, fifo: str | None = None, reply_dir: str = "/tmp"):
+    def __init__(self, url: str | None = None, fifo: str | None = None, reply_dir: str = "/tmp",
+                 with_context: bool = False):
         if not url and not fifo:
             raise ValueError("opensips: set url (mi_http) or fifo")
         self.url, self.fifo, self.reply_dir = url, fifo, reply_dir
+        # dlg_list_ctx also prints each dialog's $dlg_val() values: carrier mode reads the
+        # switch's attribution from them (docs/carrier-integration-v1.md)
+        self.with_context = with_context
 
     def _call(self, method, params=None):
         if self.url:
@@ -115,10 +119,16 @@ class OpenSIPS:
 
     def list_all(self) -> list[Dialog]:
         """Dialogs that are ringing (states 1-3) or answered (4)."""
+        return self._dialogs(self._call("dlg_list_ctx" if self.with_context else "dlg_list"))
+
+    @staticmethod
+    def _dialogs(res) -> list[Dialog]:
         out = []
-        for d in self._call("dlg_list").get("Dialogs", []):
+        for d in (res or {}).get("Dialogs", []) or []:
+            if not isinstance(d, dict):
+                continue
             st = d.get("state")
-            if st not in (1, 2, 3, 4):
+            if st not in (1, 2, 3, 4) or "callid" not in d or "ID" not in d:
                 continue
             callee = d.get("callee_tag") or ((d.get("CALLEES") or [{}])[0] or {}).get("callee_tag", "")
             out.append(Dialog(d["ID"], d["callid"], d.get("caller_tag", ""), _host(d.get("caller_contact", "")),
@@ -131,6 +141,16 @@ class OpenSIPS:
 
     def end(self, dlg: Dialog) -> None:
         self._call("dlg_end_dlg", {"dialog_id": dlg.id})
+
+    def exists(self, dlg: Dialog) -> bool:
+        """Is this exact dialog still listed (not terminated)? dlg_list takes a callid filter."""
+        try:
+            res = self._call("dlg_list", {"callid": dlg.callid})
+        except RuntimeError as e:
+            if "not found" in str(e).lower():
+                return False
+            raise
+        return any(str(d.id) == str(dlg.id) for d in self._dialogs(res))
 
 
 class Kamailio:
@@ -163,7 +183,7 @@ class Kamailio:
 def make(cfg: dict):
     kind = cfg.get("type", "opensips")
     if kind == "opensips":
-        return OpenSIPS(cfg.get("url"), cfg.get("fifo"), cfg.get("reply_dir", "/tmp"))
+        return OpenSIPS(cfg.get("url"), cfg.get("fifo"), cfg.get("reply_dir", "/tmp"), bool(cfg.get("with_context")))
     if kind == "kamailio":
         return Kamailio(cfg["url"])
     raise ValueError(f"unknown proxy type {kind!r}")

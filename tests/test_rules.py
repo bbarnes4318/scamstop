@@ -37,10 +37,15 @@ def test_kill_across_utterances(rules):
     assert hits and hits[-1].rule_id == "gift_card_payment" and m.killed
 
 
-def test_kill_stops_further_matching(rules):
+def test_matching_continues_after_a_kill_but_each_rule_fires_once(rules):
+    """Dry-run and warn-only calls stay monitored, so later evidence must still be seen."""
     m = CallMatcher(rules)
     feed(m, "there is a warrant for your arrest")
-    assert m.update("go buy google play cards") == []
+    assert m.killed
+    later = m.update("go buy google play cards")
+    assert [h.rule_id for h in later] == ["gift_card_payment"]
+    m.commit("go buy google play cards")
+    assert m.update("there is a warrant for your arrest") == []
 
 
 def test_flag_does_not_kill(rules):

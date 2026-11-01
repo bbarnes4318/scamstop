@@ -7,10 +7,13 @@
 #
 # Write these as things a called person says. Legit sales calls hear plenty of
 # "okay", "yes" and "my social security number is..." — never match those alone.
+# Context rules (strength: context) only flag; they corroborate caller-side signals
+# through the corroboration pairs in en_scams.yaml (e.g. the caller's "public defender"
+# + the victim's "how much is the bail").
 
 pack: en_victim
 language: en
-version: 1
+version: 2
 side: victim
 
 rules:
@@ -19,20 +22,36 @@ rules:
     category: victim_says
     action: kill
     patterns:
-      - '\b(you want|you need|you''re telling|you are telling|so) me to (go (and )?)?(buy|get|purchase|pick up|load)\b.{0,40}\bcards?\b'
-      - '\bhow many (gift |google play |itunes |apple |target |walmart )?cards\b'
-      - '\b(i''m|i am|i''m at|i am at) (at )?(the )?(walmart|target|cvs|walgreens|kroger|dollar general|best buy|store)\b.{0,60}\b(gift |google play |itunes |apple )?cards?\b'
-      - '\b(scratch|scratched) (off )?the (back|silver)\b'
-      - '\bthe (card|cards) (says|say|number is|numbers are)\b'
+      - '\b(you want|you need|you''re telling|you are telling|so) me to (go (and )?)?(buy|get|purchase|pick up|load)\b.{0,40}\b(gift|google play|itunes|apple|steam|target|walmart|ebay|razer) ?cards?\b'
+      - '\bhow many (gift|google play|itunes|apple|target|walmart|steam) cards\b'
+      - '\b(i''m|i am|i''m at|i am at) (at )?(the )?(walmart|target|cvs|walgreens|kroger|dollar general|best buy|store)\b.{0,60}\b(gift|google play|itunes|apple) cards?\b'
+      - '\b(scratch|scratched) (off )?the (back|silver)\b.{0,60}\b(card|cards|code|number)\b'
     examples:
       hit:
         - "wait you want me to go buy google play cards"
-        - "how many cards do i need to get"
-        - "okay i'm at the walgreens now where are the cards"
+        - "how many gift cards do i need to get"
+        - "okay i'm at the walgreens now where are the google play cards"
         - "i scratched the back and the card number is"
       miss:
         - "i have my medicare card right here"
         - "do you take a debit card for the first payment"
+        - "the card number is four one two three"
+        - "i would never buy gift cards for someone on the phone"
+
+  - id: victim_card_questions
+    name: Victim asking about cards to buy (context)
+    category: victim_says
+    action: flag
+    strength: context
+    signal: payment_soft
+    patterns:
+      - '\bhow many cards\b'
+      - '\bthe (cards) (says|say|numbers are)\b'
+    examples:
+      hit:
+        - "how many cards do i need to get"
+      miss:
+        - "i have one card"
 
   - id: victim_crypto_atm
     name: Victim at a Bitcoin / crypto ATM
@@ -56,7 +75,8 @@ rules:
     action: kill
     patterns:
       - '\b(you want|you need|you''re telling|so) me to (take out|withdraw|pull out|get) (all )?(the |my )?(cash|money|savings)\b'
-      - '\b(you want|you need|so) me to (wire|send|mail|overnight|transfer) (you )?(the )?(money|cash|it)\b'
+      - '\b(you want|you need|so) me to (wire|mail|overnight) (you )?(the )?(money|cash|it)\b'
+      - '\b(you want|you need|so) me to (send|transfer) (you )?(the )?cash\b'
       - '\bwhat (should|do) i tell the (bank|teller)\b'
       - '\byou said not to tell (the bank|anyone|my (son|daughter|husband|wife|family))\b'
     examples:
@@ -66,11 +86,14 @@ rules:
         - "you said not to tell my daughter"
       miss:
         - "i can send you a copy of my bank statement"
+        - "so you want me to send the money by check to the address on the bill"
 
   - id: victim_remote_access
-    name: Victim installing remote access
+    name: Victim installing remote access (context; booked support looks the same)
     category: victim_says
-    action: kill
+    action: flag
+    strength: context
+    signal: remote
     patterns:
       - '\b(it''s|it is) asking (me )?(to|for) (allow|give|grant) (access|control|permission)\b'
       - '\b(i''m|i am) (downloading|installing) (the )?(any ?desk|team ?viewer|program|app) (you|that you) (said|told)\b'
@@ -83,9 +106,11 @@ rules:
         - "can you give me access to the online portal later"
 
   - id: victim_bail
-    name: Victim responding to a family-emergency / bail story
+    name: Victim responding to a bail story (context; real bail calls exist)
     category: victim_says
-    action: kill
+    action: flag
+    strength: context
+    signal: custody
     patterns:
       - '\bhow much is (the |his |her |your )?(bail|bond)\b'
       - '\b(which|what) jail (is he|is she|are you)\b'
@@ -102,7 +127,7 @@ rules:
   - id: victim_card_digits
     name: Victim reading out a long card-style number
     category: victim_says
-    action: flag  # legit payments happen on sales calls too
+    action: flag  # legit payments happen on sales calls too; never a corroboration signal
     patterns:
       - '(?:\b(?:zero|oh|one|two|three|four|five|six|seven|eight|nine)\b[\s,]*){15,}'
     examples:

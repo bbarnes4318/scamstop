@@ -16,7 +16,15 @@ class SipPlatform(Platform):
 
     @classmethod
     def from_config(cls, cfg: dict) -> "SipPlatform":
-        return cls(control.make(cfg["proxy"]), RtpEngine(cfg["rtpengine"]["host"], int(cfg["rtpengine"]["port"])))
+        proxy_cfg = dict(cfg["proxy"])
+        if (cfg.get("carrier") or {}).get("enabled") and proxy_cfg.get("type") == "opensips":
+            proxy_cfg["with_context"] = True  # read the switch's attribution dialog values
+        return cls(control.make(proxy_cfg), RtpEngine(cfg["rtpengine"]["host"], int(cfg["rtpengine"]["port"])))
+
+    def call_exists(self, dlg):
+        if hasattr(self.proxy, "exists"):
+            return self.proxy.exists(dlg)
+        return super().call_exists(dlg)
 
     def all_calls(self):
         if hasattr(self.proxy, "list_all"):

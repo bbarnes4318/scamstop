@@ -54,7 +54,8 @@ def signup(base, email="ops@acme.com"):
 
 def test_public_info(portal):
     base, *_ = portal
-    assert call(base, "/api/public")[1] == {"hosted": True, "brand": "SafeCall", "signup_open": True, "support_email": ""}
+    assert call(base, "/api/public")[1] == {"hosted": True, "brand": "SafeCall", "signup_open": True, "support_email": "",
+                                           "carrier": False, "operator": None}
 
 
 def test_signup_connect_and_approval_flow(portal):
