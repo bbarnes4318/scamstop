@@ -163,3 +163,54 @@ def test_public_site_install_script_and_downloads(tmp_path):
         assert r.headers["Content-Length"] == str(len(blob)) and r.read() == b""
     finally:
         srv.shutdown()
+
+
+def test_site_template_assets_privacy_and_subscribe(tmp_path):
+    import json
+    import urllib.error
+    import urllib.request
+    from scamstop import __version__
+    from scamstop.feed_server import Downloads
+    d = tmp_path / "dl"
+    d.mkdir()
+    (d / "scamstop-installer-linux-x86_64.run").write_bytes(b"x" * 3_000_000)
+    f = feed(tmp_path, min_networks=1)
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(f, False, Downloads(str(d))))
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    base = f"http://127.0.0.1:{srv.server_address[1]}"
+
+    def status(path):
+        try:
+            return urllib.request.urlopen(base + path).status
+        except urllib.error.HTTPError as e:
+            return e.code
+
+    def sub(email, website=""):
+        req = urllib.request.Request(base + "/v1/subscribe", json.dumps({"email": email, "website": website}).encode(),
+                                     {"Content-Type": "application/json"})
+        try:
+            r = urllib.request.urlopen(req)
+            return r.status, json.loads(r.read())
+        except urllib.error.HTTPError as e:
+            return e.code, None
+
+    try:
+        page = urllib.request.urlopen(base + "/").read().decode()
+        assert __version__ in page and "{{" not in page and "3 MB" in page
+        r = urllib.request.urlopen(base + "/assets/panel-dashboard.webp")
+        assert r.status == 200 and r.headers["Content-Type"] == "image/webp"
+        r = urllib.request.urlopen(base + "/assets/warning-en.wav")
+        assert r.status == 200 and r.headers["Content-Type"] == "audio/wav"
+        assert status("/assets/..%2Ffeed.db") == 404 and status("/assets/missing.png") == 404
+        assert "support@pvnvoice.com" in urllib.request.urlopen(base + "/privacy").read().decode()
+
+        assert sub("Ann@Example.com") == (200, {"ok": True})
+        assert "ann@example.com" in f.admin("subscribers")
+        assert sub("bot@example.com", website="http://spam") == (200, {"ok": True})
+        assert "bot@example.com" not in f.admin("subscribers")
+        assert sub("not-an-email")[0] == 400
+        for i in range(4):  # 5th valid subscribe from this IP today (the honeypot hit isn't counted)
+            assert sub(f"u{i}@example.com")[0] == 200
+        assert sub("sixth@example.com")[0] == 429
+    finally:
+        srv.shutdown()
