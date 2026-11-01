@@ -25,9 +25,7 @@ header nav a{text-decoration:none;color:var(--muted)}
 header nav a:hover{color:var(--ink)}
 header nav a.btn{color:#fff;padding:8px 16px;font-size:14px}
 .hero{padding:76px 0 56px;background:linear-gradient(180deg,#f2f7fb 0%,#fff 100%)}
-.hero-grid{display:block}
-.hero-grid>div:first-child{max-width:780px}
-.hero-shot{margin:56px 0 0}
+.hero-grid{display:grid;grid-template-columns:minmax(0,55fr) minmax(0,45fr);gap:48px;align-items:center}
 .frame{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#0b1220;box-shadow:0 30px 80px rgba(13,27,42,.22)}
 .frame-bar{display:flex;gap:7px;align-items:center;height:34px;padding:0 14px;background:#e9eef4;border-bottom:1px solid var(--line)}
 .frame-bar i{width:11px;height:11px;border-radius:50%;background:#c5cfdb}
@@ -129,15 +127,15 @@ footer .row a{color:var(--muted)}
       <div class="cmd"><span class="p">$</span><span id="cmd">curl -fsSL https://scamstop.pvnvoice.com/install | sudo bash</span><button onclick="copyCmd()">Copy</button></div>
       <div class="sub">Run it on the server where your switch runs. It sets itself up, finds your phone system, and starts in watch-only mode. The script checks the <a href="/download/SHA256SUMS">SHA-256</a> before it runs anything.</div>
     </div>
+    <div class="hero-shot">
+      <div class="frame"><div class="frame-bar"><i></i><i></i><i></i></div><img src="/assets/panel-dashboard.webp" width="1600" height="1011" fetchpriority="high" alt="ScamStop control panel showing scam calls stopped today, call centers blocked and the live feed"></div>
+      <p class="caption">The control panel, shown with sample calls.</p>
+    </div>
   </div>
   <div class="counters" id="counters" hidden>
     <div class="counter"><b id="cNet">–</b><span>networks sharing this week</span></div>
     <div class="counter"><b id="cSrc">–</b><span>scam sources blocked everywhere</span></div>
     <div class="counter"><b id="cStop">–</b><span>scam calls stopped this week</span></div>
-  </div>
-  <div class="hero-shot">
-    <div class="frame"><div class="frame-bar"><i></i><i></i><i></i></div><img src="/assets/panel-dashboard.webp" width="1600" height="1011" fetchpriority="high" alt="ScamStop control panel showing scam calls stopped today, call centers blocked and the live feed"></div>
-    <p class="caption">The control panel, shown with sample calls.</p>
   </div>
 </div></div>
 
