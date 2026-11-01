@@ -55,6 +55,7 @@ class Store:
         pipe.zadd(f"{self.p}block:{kind}:exp", {value: (time.time() + ttl_s) if ttl_s else 0})
         if reason:
             pipe.hset(f"{self.p}block:{kind}:why", value, reason)
+        pipe.incr(f"{self.p}block:epoch")  # active calls are re-checked when this changes
         pipe.execute()
 
     def unblock(self, kind: str, value: str) -> bool:
@@ -62,7 +63,16 @@ class Store:
         pipe.srem(f"{self.p}block:{kind}", value)
         pipe.zrem(f"{self.p}block:{kind}:exp", value)
         pipe.hdel(f"{self.p}block:{kind}:why", value)
+        pipe.incr(f"{self.p}block:epoch")
         return bool(pipe.execute()[0])
+
+    def epoch(self) -> int:
+        return int(self.r.get(f"{self.p}block:epoch") or 0)
+
+    def block_origin(self, kind: str, value: str) -> str:
+        """'feed' for blocks applied from the shared feed (an external indicator), else 'local'."""
+        why = self.r.hget(f"{self.p}block:{kind}:why", value) or ""
+        return "feed" if why.startswith("feed:") else "local"
 
     def is_blocked(self, kind: str, value: str) -> bool:
         return bool(self.r.sismember(f"{self.p}block:{kind}", value))

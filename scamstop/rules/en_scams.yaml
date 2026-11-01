@@ -7,12 +7,42 @@
 # action: kill -> hang up both sides and add a strike against the center
 #         flag -> log only (use for rules with real false-positive risk)
 #
+# strength: strong (default)  -> enough on its own for its action
+#           context           -> action: flag, plus a `signal`. Alone it is only a flag. Two
+#                                context signals listed together under `corroboration` (from
+#                                either side of the call) make one "corroborated" kill.
+# Use context for phrases legitimate callers also say: "hi grandma", "public defender",
+# "wells fargo fraud department", "new medicare card", "teamviewer".
+#
+# Matches right after a warning/negation ("we will NEVER ask you to buy gift cards",
+# "do not buy gift cards") are ignored unless the rule says negatable: false. A strong kill
+# match inside described speech ("if anyone says there is a warrant for your arrest, hang up")
+# is downgraded to a context flag.
+#
 # Every rule MUST carry examples.hit and examples.miss. `scamstop test-rules`
 # and the test suite fail if any hit doesn't match or any miss does.
 
 pack: en_scams
 language: en
-version: 1
+version: 2
+
+# Signal pairs that, heard in the same call, are a scam (either side; order doesn't matter).
+corroboration:
+  - [family, custody]        # "grandma it's me" + "public defender" / "bail money"
+  - [custody, injury]        # "public defender" + "he broke his nose in the accident"
+  - [family, secrecy_soft]   # "grandpa" + "please don't tell mom and dad"
+  - [custody, secrecy_soft]
+  - [bank_claim, credential] # "wells fargo fraud department" + "read me the code we just texted"
+  - [bank_claim, remote]     # "chase security team" + "download anydesk"
+  - [pretext, remote]        # "we'll process a refund to your card" + "install teamviewer"
+  - [pretext, credential]    # "unauthorized charge" + "read me the six digit code"
+  - [benefit_card, fee]      # "new medicare card" + "small processing fee"
+  - [tax_claim, fee]         # "you owe the irs" + "pay the fee today"
+  # not [brand_claim, remote]: a booked support call has both
+  - [brand_claim, credential]
+  - [family, payment_soft]   # "grandma it's me" + victim: "how many cards"
+  - [custody, payment_soft]
+  - [pretext, payment_soft]
 
 rules:
   - id: amazon_impersonation
@@ -30,16 +60,32 @@ rules:
         - "i bought my blender on amazon last week"
 
   - id: apple_impersonation
-    name: Apple / iCloud impersonation
+    name: Apple / iCloud account-compromise pretext
     category: impersonation
     action: kill
     patterns:
-      - '\bapple (id|icloud|support|security|account)\b'
-      - '\bi ?cloud account\b'
+      - '\b(apple id|apple account|i ?cloud account)\b.{0,30}\b(was|has been|is|got) (used|hacked|breached|compromised|locked|suspended|disabled)\b'
     examples:
       hit:
         - "this is apple support your apple id was used in another state"
         - "your icloud account has been breached"
+      miss:
+        - "i eat an apple every morning"
+        - "this is apple support calling back about the case you opened yesterday"
+
+  - id: brand_support_claim
+    name: Brand support claim (context)
+    category: impersonation
+    action: flag
+    strength: context
+    signal: brand_claim
+    patterns:
+      - '\b(this is|calling from|with) (apple|amazon|microsoft|google|geek squad|norton|mcafee)( customer)? (support|security|care|help ?desk)\b'
+      - '\bapple (id|icloud|support|security)\b'
+    examples:
+      hit:
+        - "hi this is apple support calling back about your case"
+        - "i'm with norton support"
       miss:
         - "i eat an apple every morning"
 
@@ -72,13 +118,15 @@ rules:
         - "you can pay with target gift cards"
       miss:
         - "enroll today and receive a free gift card"
+        - "we will never ask you to buy gift cards"
+        - "remember do not buy google play cards for anyone who calls you"
 
   - id: crypto_payment
     name: Crypto / Bitcoin ATM payment demand
     category: payment_method
     action: kill
     patterns:
-      - '\b(bitcoin|bit coin|crypto(currency)?) (atm|machine|wallet|kiosk|address)\b'
+      - '\b(bitcoin|bit coin|crypto(currency)?) (atm|machine|kiosk)\b'
       - '\b(send|deposit|pay|transfer)\b.{0,30}\b(in|with|using|as|into) (bitcoin|bit coin|crypto)\b'
     examples:
       hit:
@@ -86,6 +134,7 @@ rules:
         - "you will transfer the funds into bitcoin to keep them safe"
       miss:
         - "my nephew talks about bitcoin all the time"
+        - "a real agency will never ask you to deposit cash at a bitcoin atm"
 
   - id: cash_courier
     name: Cash pickup / courier / mail cash
@@ -107,6 +156,7 @@ rules:
     name: Coaching victim to lie to bank
     category: coaching
     action: kill
+    negatable: false   # the coaching itself is phrased as a negation
     patterns:
       - '\b(do not|don''t) (tell|say anything to|talk to) (the )?(bank|teller|bank teller|bank employees|bank manager)\b'
       - '\bif (the )?(bank|teller) asks\b.{0,40}\b(tell them|say)\b'
@@ -116,6 +166,23 @@ rules:
         - "if the teller asks just tell them it is for home repairs"
       miss:
         - "you can call your bank to confirm the routing number"
+
+  - id: secrecy_soft
+    name: Asking the called person to keep it quiet (context)
+    category: coaching
+    action: flag
+    strength: context
+    signal: secrecy_soft
+    negatable: false
+    patterns:
+      - '\b(please )?(don''t|do not) tell (mom|dad|mom and dad|my (mom|dad|parents|wife|husband)|anyone|anybody)\b'
+      - '\bkeep (it|this) (between (you and (i|me)|us)|a secret|quiet)\b'
+    examples:
+      hit:
+        - "please don't tell mom and dad"
+        - "can you keep this between us"
+      miss:
+        - "you can tell anyone you like about the plan"
 
   - id: ssa_threat
     name: Social Security suspension threat
@@ -136,21 +203,25 @@ rules:
     action: kill
     patterns:
       - '\b(warrant|warrants) (for|of) your arrest\b'
-      - '\barrest warrant\b'
-      - '\b(will be|going to be) arrested\b'
+      - '\barrest warrant (has been |was |is )?(issued|out|in your name|for you|against you)\b'
+      - '\byou (will be|are going to be) arrested\b'
     examples:
       hit:
         - "there is a warrant for your arrest"
         - "you will be arrested within twenty four hours"
+        - "an arrest warrant has been issued in your name"
       miss:
         - "the police arrested the suspect yesterday"
+        - "do you have any open cases or an arrest warrant we should know about"
+        - "if anyone ever says there is a warrant for your arrest hang up"
 
   - id: legal_threat
     name: Lawsuit / legal action threat
     category: government_impersonation
     action: kill
     patterns:
-      - '\blegal action (against|will be)\b'
+      - '\blegal action (will be taken )?against you\b'
+      - '\blegal action will be (taken|filed) (today|immediately|within)\b'
       - '\blawsuit (has been )?filed against you\b'
     examples:
       hit:
@@ -158,19 +229,38 @@ rules:
         - "legal action will be taken today"
       miss:
         - "if you were injured you may have a right to compensation"
+        - "we can take legal action against the driver who hit you"
 
   - id: irs_threat
     name: IRS back-tax threat
     category: government_impersonation
     action: kill
     patterns:
-      - '\b(i r s|irs|internal revenue)\b.{0,60}\b(owe|back taxes|arrest|lawsuit|legal action|warrant)'
+      - '\b(i r s|irs|internal revenue)\b.{0,60}\b(arrest|lawsuit|legal action|warrant|police|deport)'
+      - '\b(this is|calling from|i''m with|i am with) the (i r s|irs|internal revenue)( service)?\b.{0,60}\b(owe|back taxes)\b'
     examples:
       hit:
         - "this is the internal revenue service you owe four thousand dollars"
         - "i r s department a warrant has been issued"
       miss:
         - "you can claim the tax credit on your return"
+        - "if you owe the irs back taxes our firm can help you set up a payment plan"
+        - "we are not the irs but if you owe back taxes we can help"
+
+  - id: irs_owe_claim
+    name: Tax-debt claim (context)
+    category: government_impersonation
+    action: flag
+    strength: context
+    signal: tax_claim
+    patterns:
+      - '\byou owe (the )?(i r s|irs|internal revenue)\b'
+      - '\b(i r s|irs) (says|shows) you owe\b'
+    examples:
+      hit:
+        - "records show you owe the irs"
+      miss:
+        - "if you owe nothing there is no fee"
 
   - id: jury_duty
     name: Missed jury duty fine
@@ -201,6 +291,8 @@ rules:
     name: Suspicious charge pretext
     category: pretext
     action: flag  # real bank fraud teams say this too
+    strength: context
+    signal: pretext
     patterns:
       - '\b(suspicious|unauthorized|fraudulent) (activity|charge|charges|transaction|transactions|order|purchase|login)\b'
     examples:
@@ -214,20 +306,38 @@ rules:
     category: pretext
     action: kill
     patterns:
+      - '\b(refunded|sent|transferred|deposited) you (too much|extra|by mistake)\b'
+      - '\b(send|give|pay) (us |me )?(back )?the (difference|extra)\b.{0,40}\b(gift card|bitcoin|cash|zelle|wire)'
+    examples:
+      hit:
+        - "we accidentally transferred you too much"
+        - "you need to send back the difference with gift cards"
+      miss:
+        - "the plan has no refund for unused months"
+        - "i'll process a refund to your card today it takes five business days"
+
+  - id: refund_pretext
+    name: Refund offer (context)
+    category: pretext
+    action: flag
+    strength: context
+    signal: pretext
+    patterns:
       - '\brefund department\b'
       - '\b(issue|process) (you )?a refund\b.{0,40}\b(bank|account|card)'
-      - '\b(refunded|sent|transferred) you (too much|extra|by mistake)\b'
     examples:
       hit:
         - "transferring you to the refund department"
-        - "we accidentally transferred you too much"
+        - "we can process a refund to your bank account"
       miss:
         - "the plan has no refund for unused months"
 
   - id: remote_access
-    name: Remote access tool request
+    name: Remote access tool (context; booked support uses these too)
     category: tech_support
-    action: kill
+    action: flag
+    strength: context
+    signal: remote
     patterns:
       - '\b(any ?desk|team ?viewer|ultra ?viewer|remote desktop|quick ?support|logmein)\b'
       - '\bremote access (to|on|into) your (computer|laptop|device|phone)\b'
@@ -254,6 +364,8 @@ rules:
     name: Account hacked / locked pretext
     category: pretext
     action: flag
+    strength: context
+    signal: pretext
     patterns:
       - '\byour (account|bank account) (has been |was |is )?(hacked|compromised|locked)\b'
     examples:
@@ -263,23 +375,55 @@ rules:
         - "do you have a checking account for the draft"
 
   - id: bank_impersonation
-    name: Bank / payment-app fraud department impersonation
+    name: Bank / payment-app "safe account" transfer
     category: impersonation
     action: kill
     patterns:
-      - '\b(chase|bank of america|wells fargo|us bank|citi(bank)?|capital one|paypal|zelle|venmo|cash app) (fraud|security) (department|team|alert|center)\b'
-      - '\bsend (it|the money) to yourself (through|on|with) (zelle|venmo|cash app)\b'
+      - '\bsend (it|the money|your money|the funds) to yourself (through|on|with|using) (zelle|venmo|cash app)\b'
+      - '\b(move|transfer) (your|the) (money|funds|savings) (in)?to a (safe|secure|protected|new) account\b'
+    examples:
+      hit:
+        - "to protect it send the money to yourself through zelle"
+        - "we need to move your money to a safe account today"
+      miss:
+        - "the premium can be drafted from your wells fargo checking"
+        - "this is the wells fargo fraud department please call the number printed on your card"
+
+  - id: bank_fraud_dept_claim
+    name: Bank fraud-department claim (context; real fraud teams call too)
+    category: impersonation
+    action: flag
+    strength: context
+    signal: bank_claim
+    patterns:
+      - '\b(chase|bank of america|wells fargo|us bank|citi(bank)?|capital one|paypal|zelle|venmo|cash app|your bank''?s?) (fraud|security) (department|team|alert|center|unit)\b'
     examples:
       hit:
         - "this is the wells fargo fraud department"
-        - "to protect it send the money to yourself through zelle"
       miss:
         - "the premium can be drafted from your wells fargo checking"
+
+  - id: credential_request
+    name: Asking for a one-time code / PIN / password (context)
+    category: pretext
+    action: flag
+    strength: context
+    signal: credential
+    patterns:
+      - '\b(read|tell|give) (me |us )?(back )?the (six digit |verification |security |one time |confirmation )?(code|passcode|pin)\b'
+      - '\bwhat(''s| is) your (pin|online banking password|banking password)\b'
+    examples:
+      hit:
+        - "please read me the code we just texted you"
+        - "what is your online banking password"
+      miss:
+        - "never read your code to anyone who calls you"
+        - "what is your zip code"
 
   - id: verify_account
     name: Verify account / card number
     category: pretext
-    action: flag
+    action: flag  # not a corroboration signal: legitimate payment and fraud-alert calls ask this
     patterns:
       - '\bverify your (account|card number|bank|online banking)\b'
     unless: '\bmedicare\b|\bwith your social\b'
@@ -294,26 +438,61 @@ rules:
     category: government_impersonation
     action: kill
     patterns:
-      - '\bmedicare (card|number) (has been |was |is )?(suspended|expired|cancelled|canceled|deactivated)\b'
-      - '\bnew medicare card\b'
+      - '\bmedicare (card|number) (has been |was |is |will be )?(suspended|cancelled|canceled|deactivated|frozen)\b'
+      - '\bnew medicare card\b.{0,60}\b(fee|pay|payment|charge)\b'
     examples:
       hit:
         - "your medicare card has been suspended"
-        - "we are sending you a new medicare card with a chip"
+        - "to get your new medicare card there is a small fee you pay today"
       miss:
         - "do you have your red white and blue medicare card handy"
+        - "we are sending your new medicare card because you requested a replacement"
+        - "medicare will never call to cancel your medicare number"
+
+  - id: benefit_card_claim
+    name: New benefits card (context)
+    category: government_impersonation
+    action: flag
+    strength: context
+    signal: benefit_card
+    patterns:
+      - '\bnew (medicare|social security|benefits?) card\b'
+      - '\bmedicare card (with a chip|upgrade)\b'
+    examples:
+      hit:
+        - "we are sending you a new medicare card with a chip"
+      miss:
+        - "do you have your medicare card handy"
+
+  - id: fee_request
+    name: Up-front fee (context)
+    category: advance_fee
+    action: flag
+    strength: context
+    signal: fee
+    patterns:
+      - '\b(small|one time|processing|shipping|activation|release|clearance) fee\b'
+      - '\bpay (a|the) fee (today|now|first|before)\b'
+    examples:
+      hit:
+        - "there is a small processing fee"
+      miss:
+        - "there is no fee for this plan"
 
   - id: press_one_order
     name: Fake order + press 1
     category: pretext
     action: kill
     patterns:
-      - '\b(order|purchase|charge) of\b.{0,40}\bdollars\b.{0,80}\bpress (one|1)\b'
+      - '\b(order|purchase|charge) of\b.{0,40}\bdollars\b.{0,80}\b(did not|didn''t|not) (authorize|make|place|recognize)\b.{0,40}\bpress (one|1)\b'
+      - '\b(order|purchase|charge) of\b.{0,40}\bdollars\b.{0,80}\bpress (one|1) to (cancel|dispute|stop|speak|talk|reach|get a refund)\b'
     examples:
       hit:
         - "an order of four hundred ninety nine dollars was placed if you did not authorize press one"
+        - "a charge of three hundred dollars will post press one to cancel"
       miss:
         - "press one to speak with a licensed agent"
+        - "this is an automated message from your bank did you attempt a purchase of one hundred twelve dollars press one for yes or two for no"
 
   - id: prize_fee
     name: Prize / lottery fee
@@ -345,30 +524,64 @@ rules:
     category: family_emergency
     action: kill
     patterns:
-      - '\b(i got arrested|got me arrested|they arrested me|i''?m( still)? being detained|i am( still)? being detained)\b'
+      - '\b(i got arrested|they arrested me|i''?m( still)? being detained|i am( still)? being detained)\b.{0,120}\b(money|bail|bond|pay|send|wire|cash)\b'
       - '\bcalling (you )?from (the )?(jail|court ?house|police station)\b'
       - '\bcourt ?house pay ?phone\b'
-      - '\bpublic defender\b'
-      - '\bpost (my |the |his |her )?(bail|bond)\b'
-      - '\bmoney for (my |the |his |her )?(bail|bond)\b'
-      - '\bbail (money|payment)\b'
       - '\bkeep (it|this) between (you and (i|me)|us)\b.{0,200}\b(arrested|jail|bail|wreck|accident|hospital)\b'
-      - '\b(broke|broken|busted|fractured?) (my )?nose\b'
-      - '\bstitches (in|on) my lips?\b'
-      - '\bbusted lip\b'
-      - '\bi just (got released|left) (from )?the hospital\b'
     examples:
       hit:
         - "please don't be mad i got arrested and i need money for my bail"
         - "i'm calling from the courthouse pay phone"
-        - "i busted my nose in the wreck"
+        - "keep this between us okay i was in a wreck and i'm in jail"
+      miss:
+        - "do you have money set aside for funeral costs"
+        - "i am a public defender calling to confirm your appointment tomorrow"
+        - "my grandson said i got arrested and i need money that's how i knew it was a scam"
+
+  - id: custody_claim
+    name: Arrest / bail / lawyer story (context)
+    category: family_emergency
+    action: flag
+    strength: context
+    signal: custody
+    patterns:
+      - '\bpublic defender\b'
+      - '\bpost (my |the |his |her )?(bail|bond)\b'
+      - '\bmoney for (my |the |his |her )?(bail|bond)\b'
+      - '\bbail (money|payment)\b'
+      - '\b(i got arrested|got me arrested|they arrested me|being detained|in (jail|custody))\b'
+    examples:
+      hit:
+        - "i am a public defender calling about your grandson"
+        - "he needs money for his bail"
       miss:
         - "do you have money set aside for funeral costs"
 
-  - id: grandparent_opener
-    name: Grandparent impersonation opener
+  - id: injury_claim
+    name: Injury story (context)
     category: family_emergency
-    action: kill
+    action: flag
+    strength: context
+    signal: injury
+    patterns:
+      - '\b(broke|broken|busted|fractured?) (my |his |her )?nose\b'
+      - '\bstitches (in|on) (my|his|her) lips?\b'
+      - '\bbusted (my |his |her )?lip\b'
+      - '\b(i|he|she) just (got released|left) (from )?the hospital\b'
+      - '\b(i was|he was|she was) in (a|an) (car )?(wreck|accident)\b'
+    examples:
+      hit:
+        - "i busted my nose in the wreck"
+        - "i broke my nose playing basketball yesterday"
+      miss:
+        - "medicare part a covers the hospital"
+
+  - id: grandparent_opener
+    name: Grandparent opener (context; real grandkids say this too)
+    category: family_emergency
+    action: flag
+    strength: context
+    signal: family
     patterns:
       - '^\W*((hello|hullo|hi|hey|yeah|ye|yes|oh|well|ok|okay|love|so)\W+){0,5}(hi |hey )?(great )?grand(ma|pa|mother|father)\b'
       - '\b(it''?s|it is|this is) (me )?(your|you''?re) (oldest |favorite |first |second oldest )?grand(son|daughter|kid|child)\b'
@@ -382,3 +595,4 @@ rules:
       miss:
         - "do you have grandkids that live nearby"
         - "medicare part a covers the hospital"
+        - "is this the grandmother of a student at lincoln elementary"

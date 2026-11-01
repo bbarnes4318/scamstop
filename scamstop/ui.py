@@ -23,7 +23,7 @@ from urllib.parse import parse_qs, urlparse
 
 import yaml
 
-from . import __version__, block603, config as cfgmod, control
+from . import __version__, block603, config as cfgmod, control, policy
 from .rtpengine import RtpEngine
 from .rules import load_rules, normalize
 from .store import KINDS, Store
@@ -159,11 +159,21 @@ class Panel:
             pass
         if self.dl_status:
             dstat["model"] = self.dl_status
+        pol = policy.effective(cfg)
+        cov = dstat.get("coverage") or {}
         return {
             "daemon": dstat, "platform": (cfg.get("platform") or {}).get("type") or cfg["proxy"]["type"],
             "version": __version__, "configured": Path(self.config_path).exists(),
-            "running": running, "dry_run": cfg["dry_run"], "redis_ok": redis_ok,
-            "mode": "offline" if not running else ("watching" if cfg["dry_run"] else "protecting"),
+            "running": running, "dry_run": pol.dry_run, "redis_ok": redis_ok,
+            "carrier": policy.carrier_mode(cfg), "policy": pol.source, "warn_mode": pol.warn_mode,
+            "mode": "offline" if not running else ("watching" if pol.dry_run else "protecting"),
+            # never "complete" unless the daemon says nothing was skipped, dropped or unconfirmed
+            "coverage": cov.get("status", "unknown") if running else "offline",
+            "coverage_reasons": cov.get("reasons", []),
+            "eligible": int(m.get("eligible", 0)), "skipped_cap": int(m.get("skipped_cap", 0)),
+            "listener_failures": int(m.get("listener_failures", 0)),
+            "enforce_failed": int(m.get("enforce_failed", 0)) + int(m.get("enforce_unknown", 0)),
+            "queue_delay_seconds_max": m.get("queue_delay_seconds_max", 0),
             "active_calls": int(m.get("active", 0)), "listened": int(m.get("listened", 0)),
             "dropped_chunks": int(m.get("dropped_chunks", 0)), "errors": int(m.get("errors", 0)),
             "stopped_today": len([k for k in today_k if not k.get("dry")]),
@@ -207,12 +217,39 @@ class Panel:
     def tenants(self):
         from .tenants import Tenants
         cfg = self.cfg()
-        return Tenants(self.store(cfg), cfg["hosted"])
+        c = cfg.get("carrier") or {}
+        return Tenants(self.store(cfg), cfg["hosted"], carrier=bool(c.get("enabled")), operator=c.get("operator") or "the carrier")
+
+    def carrier(self) -> bool:
+        return policy.carrier_mode(self.cfg())
 
     def public(self) -> dict:
-        h = self.cfg()["hosted"]
+        cfg = self.cfg()
+        h = cfg["hosted"]
+        carrier = policy.carrier_mode(cfg)
         return {"hosted": bool(h["enabled"]), "brand": h.get("brand") or "ScamStop",
-                "signup_open": bool(h["enabled"] and h.get("signup_open")), "support_email": h.get("support_email", "")}
+                # carrier mode: accounts are created in the carrier's own portal, never here
+                "signup_open": bool(h["enabled"] and h.get("signup_open") and not carrier),
+                "support_email": h.get("support_email", ""), "carrier": carrier,
+                "operator": (cfg.get("carrier") or {}).get("operator") if carrier else None}
+
+    # carrier mode: customer deny records (sbc:fraud:v1:*) -------------------------------
+    def fraud(self):
+        from .fraud import FraudStore
+        cfg = self.cfg()
+        if not policy.carrier_mode(cfg):
+            raise ValueError("carrier integration mode is off")
+        return FraudStore.from_config(self.store(cfg).r, cfg)
+
+    def fraud_status(self) -> dict:
+        f = self.fraud()
+        return {"denied": f.list(500), "audit": f.audit(100), "epoch": f.epoch()}
+
+    def fraud_request(self, body: dict) -> dict:
+        req = {k: body.get(k) for k in ("op", "customer_id", "reason_code", "case_id", "request_id",
+                                        "expires_at", "expected_revision", "based_on_revision")}
+        req["actor"] = "panel-admin"
+        return self.fraud().apply_request(req)
 
     def connect_info(self) -> dict:
         h = self.cfg()["hosted"]
@@ -229,13 +266,15 @@ class Panel:
 
     def tenant_status(self, tid, running, midnight, kills, flags) -> dict:
         t = self.tenants().get(tid) or {}
+        pol = policy.effective(self.cfg(), t or None)
         mine_k = [k for k in kills if k.get("tenant") == tid and k.get("ts", 0) >= midnight]
         mine_f = [f for f in flags if f.get("tenant") == tid and f.get("ts", 0) >= midnight]
         ready = t.get("status") == "active" and t.get("ips") and t.get("route")
         mode = ("pending" if t.get("status") == "pending" else "suspended" if t.get("status") == "suspended"
                 else "setup" if not ready else "offline" if not running
-                else "watching" if t.get("dry_run") else "protecting")
-        return {"role": "tenant", "tenant": t, "running": running, "mode": mode, "dry_run": t.get("dry_run", True), "redis_ok": True,
+                else "watching" if pol.dry_run else "protecting")
+        return {"role": "tenant", "tenant": t, "running": running, "mode": mode, "dry_run": pol.dry_run, "redis_ok": True,
+                "policy_locked": pol.source == "carrier",
                 "version": __version__, "configured": True, "daemon": {},
                 "stopped_today": len([k for k in mine_k if not k.get("dry")]),
                 "would_stop_today": len([k for k in mine_k if k.get("dry")]),
@@ -391,6 +430,8 @@ class Panel:
     def set_customer(self, ip: str, add: bool) -> dict:
         ipaddress.IPv4Address(ip)
         cfg = self.cfg()
+        if policy.carrier_mode(cfg):
+            raise PermissionError("in carrier mode the customer registry belongs to the carrier's portal")
         key = cfg["redis"]["customer_key"]
         if not key:
             raise ValueError("monitoring every call; switch to listed customers first")
@@ -716,6 +757,10 @@ def make_handler(panel: Panel):
                     return self._send(200, panel.set_smart(self._body()))
                 if method == "POST" and p == "smart/test-llm":
                     return self._send(200, panel.test_llm(self._body()))
+                if method == "GET" and p == "fraud":
+                    return self._send(200, panel.fraud_status())
+                if method == "POST" and p == "fraud":
+                    return self._send(200, panel.fraud_request(self._body()))
                 if method == "GET" and p == "feed":
                     return self._send(200, panel.feed_status())
                 if method == "POST" and p == "feed/sync":

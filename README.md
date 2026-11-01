@@ -13,7 +13,7 @@ They never download or install anything:
 3. **Point their dialer at your SBC:** change one host field in ViciDial, FreePBX or any dialer. The portal shows them exactly where.
 4. You **approve** the account, and their calls are protected from the next one.
 
-Their portal shows scams stopped, calls flagged, a live feed with what was said, and their own protection settings: watch-only, warn then hang up, warn only, or hang up right away.
+Their portal shows scams stopped, calls flagged, a live feed with what was said, and their own protection settings: watch-only, warn then hang up, warn only, or hang up right away. (In carrier integration mode these settings belong to the carrier and are locked.)
 
 ## For you (the operator)
 
@@ -24,6 +24,26 @@ Run once on your own infrastructure:
 3. Share the portal address. New sign-ups appear under **Companies** for approval.
 
 Verified end to end with real SIP calls (SIPp dialer → Kamailio SBC + rtpengine → SIPp carrier). A scam script was caught in about 10 seconds, the called party heard only the warning, and a legitimate Medicare call went through untouched. See `tests/e2e/`.
+
+## Carrier integration mode (PVN)
+
+For a carrier that already runs its own SBC and customer portal, ScamStop runs in **carrier
+integration mode** (`carrier.enabled: true`) instead of the hosted SBC above:
+
+- the carrier's switch resolves who each call belongs to (customer, reseller, source and entry
+  IP, prefix) and stores it on the dialog; ScamStop reads that, never the SIP Contact or Call-ID;
+- the carrier's portal stays authoritative for the customer registry (`sbc:cust:*`,
+  `sbc:entry:*`), which ScamStop never writes;
+- the carrier's mandatory policy wins: customers cannot switch protection off from any API or UI;
+- customer-level blocks live in their own namespace, `sbc:fraud:v1:deny:customer:<id>`, which
+  portal syncs never clear; accounts are quarantined only on strong, corroborated evidence, and
+  a reseller's offending child is quarantined, not the reseller;
+- hang-ups are verified (`termination_confirmed` / `failed` / `unknown`), and active calls are
+  re-checked when a block changes.
+
+The contract between the switch, the portal and ScamStop, with migration and rollback steps, is
+[docs/carrier-integration-v1.md](docs/carrier-integration-v1.md). Switch-side reference
+fragments: `deploy/carrier/opensips-fraud-gate.cfg`.
 
 ## Installing ScamStop on your SBC server
 
@@ -69,7 +89,9 @@ Choose in Setup:
 
 A built-in recording ships with ScamStop, and you can upload your own in the panel. If the warning can't play, ScamStop hangs up instead, so a scam call is never left running.
 
-Calls from the same center add up as strikes. After two killed calls (configurable), the center is blocked for 7 days. On Asterisk and FreeSWITCH, where there's no center IP, the caller ID gets the strikes instead. Blocks expire on their own, and ScamStop never blocks one of your own customers' IPs.
+Calls from the same center add up as strikes. After two killed calls (configurable), the center is blocked for 7 days. On Asterisk and FreeSWITCH, where there's no center IP, the caller ID gets the strikes instead. Blocks expire on their own, and ScamStop never blocks one of your own customers' IPs. Center strikes are supporting indicators only: suspending a customer account is a separate, stricter decision (carrier mode).
+
+A hang-up request is not treated as proof that the call ended: ScamStop checks that the switch no longer lists the call, retries, and records `termination_confirmed`, `failed` or `unknown` for each call (`enforcement.jsonl`, panel, metrics).
 
 ## Listening to both sides
 
@@ -85,8 +107,9 @@ A hit on either side warns, hangs up and strikes once. It's a switch in Setup; i
 
 Phrase rules catch exact scripts. The smart check catches reworded ones: a small model on your own server scores the last ~30 seconds of each call for scam intent.
 
-- **Built in:** 67 KB, scores in about 0.3 ms, needs no GPU or downloads. On 60 hand-written call snippets it never trained on: ROC AUC 0.99, and the default threshold flagged none of the legitimate ones (Medicare agents asking for Social Security numbers, final-expense routing-number questions).
-- **Optional second opinion:** any OpenAI-compatible model server you run, such as Ollama, llama.cpp or vLLM. Only calls that already look suspicious are sent, and nothing leaves your network.
+- **Built in:** 67 KB, needs no GPU or downloads. Its bundled test set is 60 hand-written snippets: a regression fixture, not evidence of accuracy on real calls. Measure on your own labeled calls with `scamstop eval` ([docs/evaluation.md](docs/evaluation.md)), which reports the phrase rules, the smart check and both combined at your actual flag and kill thresholds.
+- **Continuous:** a call is re-scored as it goes (bounded per call), so stronger evidence later in the call can still escalate a flag; each call gets at most one flag and one kill notification.
+- **Optional second opinion:** any OpenAI-compatible model server you run, such as Ollama, llama.cpp or vLLM. Only calls that already look suspicious are sent, and nothing leaves your network. Requests are bounded (`max_concurrent`, `max_outstanding`, `max_per_call`), replies are strictly type-checked, both speakers are labelled, and a late verdict for a call that already ended is dropped.
 
 **It starts out flag-only.** Every flag in the dashboard has **Yes, correct** and **Not a scam** buttons. **Hang up** stays locked until you've reviewed 50 flags and at least 95% were right. Your reviews also retrain it: `scamstop smart-train --labels /var/lib/scamstop/labels.jsonl`.
 
@@ -116,7 +139,7 @@ Most changes apply live. The panel tells you when a restart is needed (for examp
 
 ## Rules
 
-There are 26 caller-side rules (impersonation, payment demands, government threats, tech support, family emergencies, prizes and more) and 6 victim-side rules, all YAML in `scamstop/rules/`. Every rule carries example sentences it must catch and must not catch, and the tests enforce both. See [CONTRIBUTING.md](CONTRIBUTING.md).
+Caller-side and victim-side rule packs live as YAML in `scamstop/rules/`. A rule is either **strong** (enough on its own: payment demands, threats, secrecy coaching, safe-account transfers) or **context** (only a flag: "hi grandma", "public defender", "Wells Fargo fraud department", "new Medicare card", remote-support tools). Two context signals listed together under `corroboration`, from either side of the call, become one kill. Warnings ("we will never ask you to buy gift cards") and described speech ("if anyone says there's a warrant for your arrest, hang up") don't trigger kills. Every rule carries example sentences it must catch and must not catch, `tests/data/regression_pairs.yaml` holds legitimate/scam pairs, and the tests enforce all of them. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Commands
 
@@ -131,6 +154,8 @@ scamstop block media 198.51.100.7 --ttl 30d --reason "traceback 2026-11-02"
 scamstop blocks | unblock KIND VALUE | sweep
 scamstop smart-train --labels FILE        # retrain the smart check on your reviewed calls
 scamstop smart-eval FILE                  # its precision and recall on labeled calls
+scamstop eval FILE                        # phrase / smart / combined precision+recall at your thresholds
+scamstop fraud list|show|audit|block|quarantine|unblock   # carrier mode: customer deny records
 scamstop feed-server | feed-admin | feed-sync
 ```
 
@@ -138,6 +163,7 @@ Upgrade: run a newer installer the same way; your settings are kept. Uninstall: 
 
 ## Limits
 
+- Capacity depends on hardware and traffic; `monitor.max_streams` is a limit you set, not a measured capacity. Size it with a load test (docs/evaluation.md). When ScamStop is over its limit, drops audio, falls behind or can't confirm a hang-up, the status shows **degraded** rather than claiming full protection.
 - English only for now. Other languages need a matching speech model and rule pack.
 - Asterisk needs 16.6 or newer, because that's when External Media was added. Older ViciBox installs need an Asterisk upgrade.
 - On OpenSIPS and Kamailio, the warning needs rtpengine built with transcoding. Without it, ScamStop hangs up without the warning.

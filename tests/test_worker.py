@@ -68,6 +68,7 @@ def make(script, tmp_path, victim_script=None):
     d = Daemon.__new__(Daemon)
     d.cfg, d.stats, d.watch, d.on_text = cfg, Stats(), None, None
     d.listeners, d.killed, d.klock = {}, set(), threading.Lock()
+    d.terminated, d.evidence_by_call = set(), {}
     d.rules, d.gate = load_rules(["en_scams", "en_victim"]), CampaignGate()
     d.proxy = FakeProxy()
     d.enf = Enforcer(cfg, SipPlatform(d.proxy, None), Store(fakeredis.FakeRedis(decode_responses=True)), d.stats)

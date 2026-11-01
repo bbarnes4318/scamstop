@@ -75,6 +75,11 @@ class Platform:
     def media_ip(self, dlg: Dialog) -> str | None:
         return None
 
+    def call_exists(self, dlg: Dialog) -> bool | None:
+        """Is this call still up or ringing on the switch? None = cannot tell. Used to confirm
+        a termination really happened; never assume a hang-up request worked."""
+        return any(d.callid == dlg.callid for d in self.all_calls())
+
     def check(self) -> str:
         """Connection test for the panel. Return a short success message or raise."""
         n = len(self.all_calls())

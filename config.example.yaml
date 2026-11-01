@@ -26,7 +26,11 @@ rtpengine:
 
 monitor:
   poll_s: 1.5
-  max_streams: 400               # concurrent calls listened to; about 70 per CPU core
+  max_streams: 400               # concurrent calls listened to: a limit you size by load test, not a capacity claim
+  overload: skip_new             # skip_new | shed_victim (drop called-party listening first)
+  recheck_s: 30                  # re-check active calls against blocks at least this often (and on every block change)
+  coverage_window_s: 300         # skipped/dropped/unconfirmed events in this window mark protection "degraded"
+  queue_delay_warn_s: 3.0
   exclude_ips: ["127.0.0.1"]     # e.g. your own AI voice agents
   exclude_bind_suffix: []        # e.g. [":5080"] to skip calls arriving on a given socket
   listen_victim: true            # also transcribe the called party (rule pack en_victim); about 2x CPU
@@ -97,6 +101,8 @@ evidence:
   flag_log: /var/log/scamstop/flags.jsonl
   review_log: /var/log/scamstop/review.jsonl
   watch_log: /var/log/scamstop/watch.jsonl
+  enforcement_log: /var/log/scamstop/enforcement.jsonl   # requested / warning_started / termination_* / failed / unknown
+  escalation_log: /var/log/scamstop/escalation.jsonl     # carrier mode: account quarantines and processed requests
   transcript: full               # full | window (last 400 chars) | none
   watch_regex: null              # Call-IDs matching this get their full transcript saved, killed or not
 
@@ -114,6 +120,7 @@ smart:
   model: null                    # null = bundled model; or a path from `scamstop smart-train`
   labels_file: /var/lib/scamstop/labels.jsonl   # your Yes/Not-a-scam reviews from the dashboard
   proven: {min_reviewed: 50, min_precision: 0.95}
+  max_scores_per_call: 200       # scoring continues after a flag, bounded per call
   llm:                           # optional second opinion from a local model (Ollama, llama.cpp, vLLM)
     enabled: false
     url: http://127.0.0.1:11434/v1/chat/completions
@@ -123,9 +130,13 @@ smart:
     min_confidence: 0.8          # the model must say scam with at least this confidence
     timeout_s: 6
     max_concurrent: 4
+    max_outstanding: 16          # requests in flight across all calls; beyond this the classifier decides alone (visibly)
+    max_per_call: 4
+    reask_words: 40              # ask again after this many new words if still suspicious
 
 # Hosted service: companies sign up in the portal and send calls through your SBC
-# (deploy/sbc/). Each company chooses its own watch-only and warning settings.
+# (deploy/sbc/). Each company chooses its own watch-only and warning settings
+# (standalone only; in carrier mode the carrier's policy applies and is locked).
 hosted:
   enabled: false
   brand: ScamStop                 # shown on the portal
@@ -136,6 +147,7 @@ hosted:
   default_carrier_label: Our termination
   auto_approve: false             # keep false: unapproved accounts can't send traffic through your IPs
   signup_open: true
+  new_tenant_dry_run: true        # standalone: new companies start watch-only
   support_email: ""
 
 # Shared threat feed. See README "Shared threat feed".
@@ -155,3 +167,28 @@ feed:
 
 metrics:
   textfile: /var/lib/scamstop/metrics.prom   # the panel reads this; node_exporter can too
+
+# Hang-ups are verified: after asking the switch to end a call, ScamStop checks it is gone,
+# retries, and records termination_confirmed / failed / unknown.
+enforcement:
+  confirm_delays_s: [0.5, 1.0, 2.0]
+  end_retries: 2
+  workers: 4
+  ack_ttl_s: 86400
+
+# Carrier integration mode (docs/carrier-integration-v1.md). Off by default.
+carrier:
+  enabled: false
+  operator: PVN
+  policy: {enforce: true, warn_mode: warn_then_hangup}   # mandatory; customers cannot change it
+  fraud_prefix: "sbc:fraud:v1:"
+  attribution:
+    values: {version: fa_v, customer_id: fa_cust, parent_id: fa_parent, src_ip: fa_src, endpoint: fa_ep, entry_ip: fa_entry}
+    require_for_escalation: true
+  escalation:
+    enabled: true
+    window_s: 86400
+    quarantine_after: 3          # distinct terminated calls with strong evidence
+    min_evidence_kinds: 2        # of phrase_caller, phrase_victim, corroborated, smart
+    quarantine_ttl_s: 0          # 0 = until a PVN operator reviews it
+    parent: {enabled: false, children_quarantined: 3}

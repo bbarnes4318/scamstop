@@ -447,6 +447,9 @@ async function loadDash() {
     else { await save({dry_run: false}); }
   };
   if (ROLE === "tenant" && st.mode === "protecting" && !st.last_call) $("#hero p").textContent = "Waiting for your first call through the SBC.";
+  if (ROLE === "tenant" && st.policy_locked && arm) arm.remove();  // carrier mode: the carrier sets protection
+  if (ROLE === "admin" && st.running && st.coverage === "degraded")
+    $("#hero p").textContent += ` Coverage is degraded right now (${(st.coverage_reasons || []).join(", ").replace(/_/g, " ")}): some calls or audio were not fully checked, or a hang-up could not be confirmed.`;
   $("#sStopped").innerHTML = st.dry_run ? `${st.would_stop_today}<span style="font-size:13px;color:var(--amber);font-weight:600;margin-left:8px">would stop</span>` : st.stopped_today;
   $("#sBlocked").textContent = st.redis_ok ? st.centers_blocked : "–";
   $("#sActive").textContent = st.running && st.active_calls != null ? st.active_calls : (ROLE === "tenant" ? (st.last_call ? ago(st.last_call) : "–") : "–");

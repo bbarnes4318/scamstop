@@ -11,6 +11,10 @@
   scamstop ui [--host 0.0.0.0] [--port 8090] web control panel
   scamstop smart-train --labels FILE        retrain the smart check on your reviewed calls
   scamstop smart-eval FILE                 precision/recall on labeled calls
+  scamstop eval FILE|--pairs YAML          phrase / smart / combined precision+recall at the real thresholds
+  scamstop fraud list|show ID|audit        carrier mode: customer deny records (sbc:fraud:v1:*)
+  scamstop fraud block|quarantine ID --case C [--reason R] [--expires-in 7d]
+  scamstop fraud unblock ID --case C --revision N
   scamstop feed-sync                       share/pull the threat feed now
   scamstop feed-server [--db ...]          host a shared threat feed
   scamstop feed-admin ACTION [ARGS]        installs | subscribers | trust ID | ban ID | allow KIND VALUE | delete KIND VALUE
@@ -239,6 +243,57 @@ def cmd_smart_eval(cfg, a):
     return 0
 
 
+def cmd_eval(cfg, a):
+    from .evaluation import evaluate_system, load_labeled, pairs_as_labeled
+    from .smart import Classifier
+    calls = pairs_as_labeled(a.pairs) if a.pairs else load_labeled(a.file)
+    res = evaluate_system(calls, _rules(cfg), Classifier.load(cfg["smart"].get("model") or None), cfg["smart"])
+    if not a.rows:
+        res.pop("rows")
+    print(json.dumps(res, indent=2))
+    return 0
+
+
+def _fraud(cfg):
+    from .fraud import FraudStore
+    if not cfg.get("carrier", {}).get("enabled"):
+        print("carrier integration mode is off (carrier.enabled)", file=sys.stderr)
+        sys.exit(2)
+    return FraudStore.from_config(_store(cfg).r, cfg)
+
+
+def cmd_fraud(cfg, a):
+    import secrets
+    f = _fraud(cfg)
+    if a.action == "list":
+        for d in f.list():
+            exp = time.strftime("%Y-%m-%d %H:%M", time.gmtime(d["expires_at"])) + "Z" if d["expires_at"] else "never"
+            print(f"{d['customer_id']:>18} {d.get('state', ''):12} rev={d['revision']:<6} expires={exp:18} "
+                  f"case={d.get('case_id', '')} reason={d.get('reason_code', '')} active={int(d['active'])}")
+        return 0
+    if a.action == "audit":
+        for e in f.audit(a.count):
+            print(json.dumps(e))
+        return 0
+    if not a.customer_id:
+        print("customer id required", file=sys.stderr)
+        return 2
+    if a.action == "show":
+        print(json.dumps(f.get(a.customer_id), indent=2))
+        return 0
+    req = {"op": a.action, "customer_id": a.customer_id, "case_id": a.case or "", "actor": a.actor,
+           "request_id": a.request_id or f"cli-{secrets.token_hex(8)}", "reason_code": a.reason}
+    if a.action == "unblock":
+        req["expected_revision"] = a.revision
+    else:
+        ttl = _ttl(a.expires_in)
+        req["expires_at"] = int(time.time()) + ttl if ttl else 0
+        if a.revision is not None:
+            req["based_on_revision"] = a.revision
+    print(json.dumps(dict(f.apply_request(req), request_id=req["request_id"])))
+    return 0
+
+
 def cmd_run(cfg, a):
     from .daemon import Daemon
     Daemon(cfg, a.config).run()
@@ -303,6 +358,20 @@ def main(argv=None):
     s = sub.add_parser("smart-eval", help="precision/recall of the smart check on labeled calls")
     s.add_argument("file")
     s.add_argument("--model", default=None)
+    s = sub.add_parser("eval", help="precision/recall of phrase rules, smart check and both, at the configured thresholds")
+    s.add_argument("file", nargs="?")
+    s.add_argument("--pairs", default=None, help="a regression pairs YAML (tests/data/regression_pairs.yaml)")
+    s.add_argument("--rows", action="store_true", help="include each call's verdicts")
+    s = sub.add_parser("fraud", help="carrier mode: customer deny records")
+    s.add_argument("action", choices=["list", "show", "audit", "block", "quarantine", "unblock"])
+    s.add_argument("customer_id", nargs="?")
+    s.add_argument("--case", default=None)
+    s.add_argument("--reason", default="manual_review")
+    s.add_argument("--revision", type=int, default=None, help="unblock: the revision you reviewed; block: based-on revision")
+    s.add_argument("--expires-in", default="0", help="e.g. 12h, 7d; 0 = no automatic expiry")
+    s.add_argument("--actor", default=os.environ.get("SUDO_USER") or os.environ.get("USER") or "cli")
+    s.add_argument("--request-id", default=None, help="reuse to retry safely (idempotent)")
+    s.add_argument("--count", type=int, default=50)
     s = sub.add_parser("download-model", help="fetch the speech model from a URL you host")
     s.add_argument("--dir", default=None)
     s.add_argument("--url", default=None, help="the model .tar.bz2 archive (defaults to asr.model_url)")
@@ -325,7 +394,7 @@ def main(argv=None):
         a.config = cfgmod.DEFAULT_PATH
     cfg = cfgmod.load(a.config)
     fn = {"run": cmd_run, "test-rules": cmd_test_rules, "scan": cmd_scan, "scan-audio": cmd_scan_audio,
-          "ui": cmd_ui, "syscheck": cmd_syscheck, "download-model": cmd_download_model, "smart-train": cmd_smart_train, "smart-eval": cmd_smart_eval, "feed-sync": cmd_feed_sync, "feed-server": cmd_feed_server, "feed-admin": cmd_feed_admin, "block": cmd_block, "unblock": cmd_unblock, "blocks": cmd_blocks, "sweep": cmd_sweep}[a.cmd]
+          "ui": cmd_ui, "syscheck": cmd_syscheck, "download-model": cmd_download_model, "smart-train": cmd_smart_train, "smart-eval": cmd_smart_eval, "eval": cmd_eval, "fraud": cmd_fraud, "feed-sync": cmd_feed_sync, "feed-server": cmd_feed_server, "feed-admin": cmd_feed_admin, "block": cmd_block, "unblock": cmd_unblock, "blocks": cmd_blocks, "sweep": cmd_sweep}[a.cmd]
     sys.exit(fn(cfg, a))
 
 
