@@ -36,10 +36,12 @@ CREATE TABLE IF NOT EXISTS reports (kind TEXT, value TEXT, install_id TEXT, net 
 CREATE INDEX IF NOT EXISTS reports_last ON reports(last_seen);
 CREATE TABLE IF NOT EXISTS allowlist (kind TEXT, value TEXT, note TEXT, PRIMARY KEY (kind, value));
 CREATE TABLE IF NOT EXISTS events (install_id TEXT, day TEXT, rule TEXT, n INTEGER, PRIMARY KEY (install_id, day, rule));
+CREATE TABLE IF NOT EXISTS subscribers (email TEXT PRIMARY KEY, created INTEGER, ip TEXT);
 """
 _CLI = re.compile(r"^[2-9]\d{9}$")
 _TAG = re.compile(r"^CNX\d+$")
 _RULE = re.compile(r"^[a-z0-9_:. x-]{0,80}$")
+_EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 def valid(kind: str, value: str) -> bool:
@@ -77,6 +79,7 @@ class Feed:
         self.conn.executescript(SCHEMA)
         self.conn.commit()
         self._regs: dict[str, list[float]] = {}
+        self._subs: dict[str, list[float]] = {}
         self._quota: dict[tuple[str, str], int] = {}
         self._cache: tuple[float, str, bytes] | None = None
 
@@ -93,6 +96,22 @@ class Feed:
                               (iid, _hash(key), (name or "")[:80], ip, int(now)))
             self.conn.commit()
         return {"install_id": iid, "key": key}
+
+    def subscribe(self, email: str, website: str, ip: str) -> dict:
+        if website:  # honeypot filled in: a bot
+            return {"ok": True}
+        email = (email or "").strip().lower()
+        if len(email) > 254 or not _EMAIL.fullmatch(email):
+            raise ValueError("invalid email")
+        now = time.time()
+        recent = [t for t in self._subs.get(ip, []) if now - t < 86400]
+        if len(recent) >= self.max_regs:
+            raise PermissionError("too many subscribes from this address today")
+        self._subs[ip] = recent + [now]
+        with self.lock:
+            self.conn.execute("INSERT OR IGNORE INTO subscribers VALUES (?,?,?)", (email, int(now), ip))
+            self.conn.commit()
+        return {"ok": True}
 
     def auth(self, header: str) -> str | None:
         if not header.startswith("Bearer "):
@@ -182,6 +201,9 @@ class Feed:
             if action == "installs":
                 rows = c.execute("SELECT id, name, ip, trusted, banned, datetime(last_seen,'unixepoch') FROM installs ORDER BY last_seen DESC").fetchall()
                 return "\n".join(f"{r[0]}  trusted={r[3]} banned={r[4]}  last={r[5]}  {r[2]}  {r[1]}" for r in rows) or "no installs"
+            if action == "subscribers":
+                rows = c.execute("SELECT email, datetime(created,'unixepoch'), ip FROM subscribers ORDER BY created DESC").fetchall()
+                return "\n".join(f"{r[0]}  {r[1]}  {r[2]}" for r in rows) or "no subscribers"
             if action in ("trust", "untrust", "ban", "unban"):
                 col, val = ("trusted", 1) if action == "trust" else ("trusted", 0) if action == "untrust" else ("banned", int(action == "ban"))
                 n = c.execute(f"UPDATE installs SET {col}=? WHERE id=?", (val, args[0])).rowcount
@@ -212,7 +234,12 @@ body{margin:0;background:#0a0f1c;color:#e8edf7;font:15px/1.5 -apple-system,Segoe
 <p>Join by turning on the shared feed in your ScamStop panel.</p></div></body></html>"""
 
 
-SITE_PAGE = Path(__file__).parent / "web" / "site.html"
+WEB = Path(__file__).parent / "web"
+SITE_PAGE = WEB / "site.html"
+PRIVACY_PAGE = WEB / "privacy.html"
+ASSETS = WEB / "assets"
+ASSET_TYPES = {".webp": "image/webp", ".png": "image/png", ".svg": "image/svg+xml", ".wav": "audio/wav"}
+WARNING_WAV = Path(__file__).parent / "audio_files" / "warning-en.wav"
 LATEST = "scamstop-installer-linux-x86_64.run"
 _SAFE = re.compile(r"^[A-Za-z0-9._-]+$")
 
@@ -257,6 +284,11 @@ class Downloads:
         self._sums[p.name] = (m, h.hexdigest())
         return h.hexdigest()
 
+    def latest(self) -> Path | None:
+        """The real installer file behind the LATEST symlink."""
+        p = self.path(LATEST)
+        return p.resolve() if p else None
+
     def sums(self) -> str:
         if not self.dir or not self.dir.is_dir():
             return ""
@@ -264,7 +296,25 @@ class Downloads:
         return "".join(f"{self.sha256(p)}  {p.name}\n" for p in files)
 
 
+def render_site(downloads: Downloads) -> bytes:
+    from . import __version__
+    p = downloads.latest()
+    released = size = ""
+    if p:
+        st = p.stat()
+        t = time.localtime(st.st_mtime)
+        released = f"{time.strftime('%b', t)} {t.tm_mday}, {t.tm_year}"
+        size = f"{round(st.st_size / 1e6)} MB"
+    page = SITE_PAGE.read_text(encoding="utf-8")
+    if not released:
+        page = page.replace(" · Released {{RELEASED}}", "")
+    return (page.replace("{{VERSION}}", __version__).replace("{{RELEASED}}", released)
+            .replace("{{SIZE}}", size or "about 230 MB").encode())
+
+
 def make_handler(feed: Feed, trust_proxy: bool, downloads: Downloads | None = None, public_url: str = ""):
+    site_cache: list = [0.0, b""]  # rendered page, refreshed every 60 s
+
     class H(BaseHTTPRequestHandler):
         server_version = "ScamStopFeed"
 
@@ -305,9 +355,20 @@ def make_handler(feed: Feed, trust_proxy: bool, downloads: Downloads | None = No
             u = urlparse(self.path)
             if u.path == "/":
                 if downloads is not None and SITE_PAGE.exists():
-                    return self.send(200, SITE_PAGE.read_bytes(), "text/html; charset=utf-8",
+                    if time.time() - site_cache[0] > 60:
+                        site_cache[:] = [time.time(), render_site(downloads)]
+                    return self.send(200, site_cache[1], "text/html; charset=utf-8",
                                      {"Cache-Control": "public, max-age=300"})
                 return self.send(200, (PUBLIC_PAGE % feed.stats()).encode(), "text/html; charset=utf-8")
+            if u.path == "/privacy" and PRIVACY_PAGE.exists():
+                return self.send(200, PRIVACY_PAGE.read_bytes(), "text/html; charset=utf-8")
+            if u.path.startswith("/assets/"):
+                name = u.path[len("/assets/"):]
+                p = WARNING_WAV if name == WARNING_WAV.name else ASSETS / name
+                ctype = ASSET_TYPES.get(p.suffix)
+                if not _SAFE.fullmatch(name) or not ctype or not p.is_file():
+                    return self.send(404, {"error": "not found"})
+                return self.send(200, p.read_bytes(), ctype, {"Cache-Control": "public, max-age=86400"})
             if u.path == "/install" and downloads is not None:
                 url = public_url or f"https://{self.headers.get('Host', 'localhost')}"
                 return self.send(200, INSTALL_SH.format(url=url.rstrip("/"), latest=LATEST).encode(), "text/x-shellscript")
@@ -344,6 +405,9 @@ def make_handler(feed: Feed, trust_proxy: bool, downloads: Downloads | None = No
             try:
                 if u.path == "/v1/register":
                     return self.send(200, feed.register(self.body().get("name", ""), self.ip()))
+                if u.path == "/v1/subscribe":
+                    b = self.body()
+                    return self.send(200, feed.subscribe(str(b.get("email", "")), str(b.get("website", "")), self.ip()))
                 if u.path == "/v1/report":
                     iid = feed.auth(self.headers.get("Authorization", ""))
                     if not iid:

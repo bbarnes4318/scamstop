@@ -13,7 +13,7 @@
   scamstop smart-eval FILE                 precision/recall on labeled calls
   scamstop feed-sync                       share/pull the threat feed now
   scamstop feed-server [--db ...]          host a shared threat feed
-  scamstop feed-admin ACTION [ARGS]        installs | trust ID | ban ID | allow KIND VALUE | delete KIND VALUE
+  scamstop feed-admin ACTION [ARGS]        installs | subscribers | trust ID | ban ID | allow KIND VALUE | delete KIND VALUE
 """
 from __future__ import annotations
 
@@ -318,7 +318,7 @@ def main(argv=None):
     s.add_argument("--public-url", default="", help="e.g. https://scamstop.pvnvoice.com (used in /install)")
     s = sub.add_parser("feed-admin", help="manage a feed server's installs and indicators")
     s.add_argument("--db", default="/var/lib/scamstop-feed/feed.db")
-    s.add_argument("action", choices=["installs", "trust", "untrust", "ban", "unban", "allow", "unallow", "delete"])
+    s.add_argument("action", choices=["installs", "subscribers", "trust", "untrust", "ban", "unban", "allow", "unallow", "delete"])
     s.add_argument("args", nargs="*")
     a = p.parse_args(argv)
     if a.config is None and (a.cmd in ("ui", "syscheck") or os.path.exists(cfgmod.DEFAULT_PATH)):
